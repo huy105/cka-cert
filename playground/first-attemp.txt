@@ -1,0 +1,8 @@
+question:
+- template -> oke
+- cri-o install with deb -> oke
+- change request, limits resource
+- install cni -> oke
+- install cluster -> oke
+- priority class -> oke
+- hpa behavior -> oke
