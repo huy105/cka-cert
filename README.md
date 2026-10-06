@@ -1,3950 +1,1057 @@
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-[![YAML Validation](https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator/actions/workflows/validate.yml/badge.svg)](https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator/actions/workflows/validate.yml)
-[![CKA](https://img.shields.io/badge/CKA-Certified%202026-success)]()
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.35-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
-[![Exercises](https://img.shields.io/badge/Exercises-31-blue)](exercises/)
-[![Skeletons](https://img.shields.io/badge/YAML%20Skeletons-23-blue)](skeletons/)
-[![Mock Exams](https://img.shields.io/badge/Mock%20Exams-2-success)](mock-exams/)
-[![GitHub stars](https://img.shields.io/github/stars/theplatformlab/CKA-Certified-Kubernetes-Administrator?style=social)](https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator)
+# CKS (Certified Kubernetes Security Specialist) — Tài liệu ôn thi
 
-**Disclaimer:** This is a study and practice resource. It contains practice exercises and training materials designed to help prepare for the CKA exam. It does not include, share, or reproduce actual CKA exam questions. All exercises are independently designed training scenarios. See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for policies.
+> Điều kiện: phải có chứng chỉ CKA còn hiệu lực. Thi 2 tiếng, ~15-16 tasks thực hành trên terminal thật (nhiều cluster/context), không trắc nghiệm.
 
-> My CKA study notes, practice questions, and kubectl cheat sheet. Kubernetes v1.35. I scored 89% — this is everything I used to prepare.
+## 0. Setup môi trường làm bài (làm ngay khi vào phòng thi)
 
-# CKA Certification Guide 2026 — How I Passed with 89%
+```bash
+# Alias bắt buộc phải có, gõ tay hàng chục lần trong bài thi
+alias k=kubectl
+export do="--dry-run=client -o yaml"
+export now="--force --grace-period=0"
 
-<p align="center">
-  <img src="assets/cka.png" alt="CKA Certification Exam 2026 — Certified Kubernetes Administrator Study Guide with Practice Questions, Cheat Sheet, and Exam Tips">
-</p>
+# Luôn kiểm tra & chuyển đúng context/cluster trước MỖI câu — đề có nhiều cluster
+kubectl config get-contexts
+kubectl config use-context <context-name>
+kubectl config current-context   # confirm lại trước khi làm
 
-I took the CKA in March 2026 and scored 89%. Writing this while it's fresh — partly because I was frustrated with how many outdated guides are still floating around (dockershim references in 2026, come on) and partly because organizing my notes helped me retain what I learned.
+# Bật auto-completion + vim mode nếu quen
+source <(kubectl completion bash)
+complete -F __start_kubectl k
+set -o vi   # nếu quen vim trong bash
+```
 
-The [CKA](https://www.cncf.io/certification/cka/) is a hands-on, terminal-based exam. 2 hours, roughly 17-25 tasks, no multiple choice. I prepped for about 4 weeks. This repo has my notes, the commands I actually used, YAML I wrote from memory, and the mistakes I made along the way.
+- Mỗi câu hỏi thường ghi rõ context/node nào cần dùng — đọc kỹ dòng đầu tiên, sai context là mất điểm oan dù làm đúng.
+- SSH sang node khác khi đề yêu cầu: `ssh node01`, xong việc nhớ `exit` về lại controlplane trước khi làm câu tiếp theo.
+- Dùng `vim` với `set nu`, `set expandtab`, `set shiftwidth=2` (thường đã có sẵn `~/.vimrc` do đề cấu hình, kiểm tra lại `cat ~/.vimrc`).
+- Trang tài liệu được phép dùng khi thi: kubernetes.io/docs, kubernetes.io/blog, github.com/kubernetes, github.com/falcosecurity, github.com/aquasecurity (trivy), github.com/cncf, gvisor.dev, kata-containers.org. Luyện thao tác search nhanh trong các trang này trước khi thi — mở sẵn tab, dùng Ctrl+F tìm keyword thay vì đọc lướt.
+- Dùng nút **flag/bookmark** trên giao diện thi cho câu khó, quay lại cuối giờ — đừng dừng lại quá lâu ở 1 câu.
+- Cuối mỗi mục có khối **🔗 Tra cứu khi thi**: ✅ = thuộc domain được phép mở trong phòng thi (kubernetes.io/docs, kubernetes.io/blog, falco.org/docs, trivy docs, etcd.io/docs, AppArmor wiki); 📖 = chỉ để ôn trước ở nhà, nhiều khả năng **không** mở được khi thi → nắm cú pháp trước.
 
-> Blog version of these notes: [Pass the CKA Certification Exam](https://techwithmohamed.com/blog/cka-exam-study-guide/)
-
-If this was useful, a star helps others find it.
+**🔗 Tra cứu khi thi:**
+- ✅ [kubectl Quick Reference (alias, completion, jsonpath)](https://kubernetes.io/docs/reference/kubectl/quick-reference/)
+- ✅ [kubectl command reference (cú pháp từng lệnh)](https://kubernetes.io/docs/reference/kubectl/generated/)
+- 📖 [LF — danh sách tài liệu được phép mở khi thi (kiểm tra lại trước ngày thi)](https://docs.linuxfoundation.org/tc-docs/certification/certification-resources-allowed)
 
 ---
 
-## Quick Start (< 4 Weeks to Exam)
+> **Tỷ trọng domain chính thức (CNCF Curriculum v1.34, xem [nguồn](https://github.com/cncf/curriculum/blob/master/CKS_Curriculum%20v1.34.pdf)):** Cluster Setup 15%, Cluster Hardening 15%, System Hardening 10%, Minimize Microservice Vulnerabilities 20%, Supply Chain Security 20%, Monitoring/Logging/Runtime Security 20%. (Một số blog ghi 10%/15% lẫn lộn giữa Cluster Setup và System Hardening — bản dưới đây đã sửa theo đúng PDF gốc.)
 
-If you're time-pressured, here's the fast track:
+## 0.5 Kiến thức nền cần biết trước (CKS đào sâu Linux/security hơn CKA)
 
-1. **Start a practice cluster** _(if needed)_ — if `kubectl` says connection refused or you don't have a local cluster yet: `bash scripts/init-cluster.sh`. This creates a kind-based k8s 1.35.1 cluster with one command. [Read more](#local-cluster-setup).
-2. **Run the setup script** — get your aliases and vim config right from day one: [scripts/exam-setup.sh](scripts/exam-setup.sh)
-3. **Do the exercises** — work through the [31 hands-on exercises](exercises/) in order. Each one targets a specific CKA domain.
-4. **Use YAML templates** — reference [TEMPLATES.md](TEMPLATES.md) for all skeleton YAML. Copy, paste, modify.
-5. **Do the mock exam** — practice under exam conditions with timed scenarios. See [mock-exams/README.md](mock-exams/README.md) for prep strategy and scoring.
-6. **Do killer.sh twice** — once 2 weeks out, once 3 days before. See [killer.sh vs the Real Exam](#killersh-vs-the-real-cka-exam).
-7. **Read the exam day strategy** — the [two-pass approach](#exam-day-strategy--time-allocation) saved time on exam day.
+CKA tập trung vào vận hành cluster (Deployment, Service, Storage...) và giả định bạn đã nắm phần đó rồi. CKS đào sâu thêm **lớp bảo mật bên dưới**, phần lớn nằm ở tầng Linux kernel và tầng admission control của API server — những thứ CKA gần như không đụng tới. Dưới đây là vài khái niệm nền, đọc trước khi vào các mục có ghi chú "(mới so với CKA)":
 
----
-
-## Repo Structure
-
-```
-CKA-Certified-Kubernetes-Administrator/
-├── README.md                          # This guide (you're here)
-├── exercises/                         # 31 hands-on labs
-│   ├── 01-pod-basics/
-│   ├── 02-multi-container-pod/
-│   ├── 03-configmap-secret/
-│   ├── 04-rbac/
-│   ├── 05-networkpolicy/
-│   ├── 06-deployment-rollout/
-│   ├── 07-statefulset/
-│   ├── 08-node-drain-cordon/
-│   ├── 09-kubeadm-upgrade/
-│   ├── 10-static-pod/
-│   ├── 11-troubleshoot-cluster/
-│   ├── 12-storage-pv-pvc/
-│   ├── 13-helm-install-upgrade/
-│   ├── 14-kustomize-overlays/
-│   ├── 15-gateway-api/
-│   ├── 16-hpa/
-│   ├── 17-kubectl-debug/
-│   ├── 18-cri-dockerd-setup/
-│   ├── 19-ingress-classic/
-│   ├── 20-pod-security-standards/
-│   ├── 21-jobs-cronjobs/
-│   ├── 22-priorityclass/
-│   ├── 23-resource-requests-tuning/
-│   ├── 24-priorityclass-patch/
-│   ├── 25-storage-waitforfirstconsumer/
-│   ├── 26-cri-dockerd-setup/
-│   ├── 27-cni-tigera-install/
-│   ├── 28-network-policy-complex/
-│   ├── 29-troubleshoot-etcd-endpoint/
-│   ├── 30-tls-configuration-update/
-│   └── 31-argocd-gitops-setup/
-├── TEMPLATES.md                       # All YAML templates in collapsible format
-├── skeletons/                         # 23 YAML template files (see TEMPLATES.md)
-├── mock-exams/                        # Full practice exams (15 questions, 2 hours each)
-│   ├── MOCK-EXAM-01.md               # Practice questions
-│   ├── MOCK-EXAM-01-SOLUTIONS.md    # Complete solutions and explanations
-│   ├── MOCK-EXAM-02.md
-│   └── MOCK-EXAM-02-SOLUTIONS.md
-├── cheatsheet/
-│   └── cka-cheatsheet.md              # One-page printable reference
-├── troubleshooting/
-│   └── README.md                      # Symptom-based lookup playbook
-├── scripts/
-│   ├── exam-setup.sh                 # Aliases, vim config, bash completion
-│   └── validate-local.sh             # Local YAML validation (run before pushing)
-├── .github/
-│   ├── workflows/validate.yml         # CI — YAML lint on every push
-│   ├── ISSUE_TEMPLATE/                # Bug, content request, exam feedback
-│   │   └── config.yml                 # Discussions link for questions
-│   └── PULL_REQUEST_TEMPLATE.md
-├── CHANGELOG.md
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── SECURITY.md
-└── LICENSE
-```
+- **Linux Capabilities**: theo Unix truyền thống, user `root` (UID 0) có toàn quyền, user thường thì không có gì đặc biệt. Capabilities chia nhỏ "toàn quyền root" thành ~40 quyền riêng lẻ (VD `NET_BIND_SERVICE` = được bind port <1024, `SYS_ADMIN` = một mớ quyền quản trị hệ thống, `CHOWN` = đổi owner file...). Container mặc định chạy với 1 tập capabilities nhỏ hơn full root nhưng vẫn thừa so với nhu cầu thực tế của app — xem mục 3.3.
+- **Seccomp (secure computing mode)**: cơ chế của kernel Linux để lọc syscall (lời gọi hệ thống, VD `open`, `read`, `execve`...) mà 1 process được phép gọi. Trong ~350 syscall của Linux, container thường chỉ cần vài chục cái — seccomp profile giới hạn lại để giảm bề mặt tấn công nếu container bị chiếm quyền. Xem mục 3.2.
+- **AppArmor (Linux Security Module — LSM)**: LSM là framework của kernel cho phép gắn thêm "Mandatory Access Control" (MAC) — quy định ai được truy cập file/network gì, tách biệt với permission Unix cổ điển (chỉ theo owner/group/other). AppArmor là 1 LSM cụ thể (SELinux là LSM khác, không nằm trong CKS). Xem mục 3.1.
+- **Admission Controller**: đoạn logic chạy trong API server, xen vào giữa lúc request đã authenticate/authorize xong nhưng **trước khi** được ghi vào etcd — có thể validate (chặn) hoặc mutate (sửa) request. Pod Security Admission (4.2), ImagePolicyWebhook (5.3), OPA/Gatekeeper (4.3) đều thuộc nhóm này — CKA hầu như không dùng tới cơ chế này.
+- **Runtime security**: khác với các cơ chế trên (chặn *trước khi* container chạy), runtime security theo dõi hành vi **trong lúc container đang chạy** để phát hiện bất thường — đây là việc Falco làm (mục 6.1). Có thể hình dung như một IDS (Intrusion Detection System) dành cho container, bắt syscall qua kernel module hoặc eBPF.
+- **Sandbox runtime (gVisor/Kata)**: container thông thường (runc) chia sẻ chung kernel với host — nếu container thoát được ra khỏi giới hạn (container escape), nó chạm thẳng tới kernel thật của node. gVisor/Kata chèn thêm 1 lớp cách ly giữa container và kernel host để giảm rủi ro này. Xem mục 6.4.
 
 ---
 
-## Table of Contents
+## 1. Cluster Setup (15%)
 
-### Start Here — Practice Your Skills
-- [CKA Syllabus Breakdown (v1.35)](#cka-syllabus-breakdown-v135)
-  - [Domain 1 — Storage (10%)](#domain-1--storage-10)
-  - [Domain 2 — Troubleshooting (30%)](#domain-2--troubleshooting-30)
-  - [Domain 3 — Workloads & Scheduling (15%)](#domain-3--workloads--scheduling-15)
-  - [Domain 4 — Cluster Architecture, Installation & Configuration (25%)](#domain-4--cluster-architecture-installation--configuration-25)
-  - [Domain 5 — Services & Networking (20%)](#domain-5--services--networking-20)
-- [CKA Domain Weight Distribution](#cka-domain-weight-distribution)
-- [Practice Scenarios with Full Solutions](#practice-scenarios-with-full-solutions)
-- [Mock Exams — Final Preparation](#mock-exams--final-preparation)
-- [Study Progress Tracker](#study-progress-tracker)
-
-### Exam Preparation Strategy
-- [The Exam Environment (PSI Remote Desktop)](#the-exam-environment-psi-remote-desktop)
-- [First 60 Seconds — Aliases, vim, bash](#first-60-seconds--aliases-vim-bash)
-- [Imperative Commands Quick Reference](#imperative-commands-quick-reference)
-- [YAML Templates Quick Reference](#yaml-skeletons--write-these-from-memory)
-- [Exam Day Strategy — Time Allocation](#exam-day-strategy--time-allocation)
-- [Mistakes That Will Fail You on the CKA](#mistakes-that-will-fail-you-on-the-cka)
-- [Vim Keys I Actually Used on Exam Day](#vim-keys-i-actually-used-on-exam-day)
-- [Troubleshooting Decision Flowchart](#troubleshooting-decision-flowchart)
-- [CKA Exam Day Checklist](#cka-exam-day-checklist)
-
-### Study Resources & Planning
-- [kubectl Cheat Sheet for CKA](#kubectl-cheat-sheet-for-cka)
-- [Docs Pages I Actually Used During the Exam](#docs-pages-i-actually-used-during-the-exam)
-- [CKA Study Plan (4-5 Weeks)](#cka-study-plan-4-5-weeks)
-- [Study Resources for CKA 2026](#study-resources-for-cka-2026)
-- [killer.sh vs the Real CKA Exam](#killersh-vs-the-real-cka-exam)
-
-### Exam Details & Reference
-- [CKA Exam Details — Cost, Duration, Passing Score, Format](#cka-exam-details--cost-duration-passing-score-format-march-2026)
-- [How Much Does the CKA Exam Cost?](#how-much-does-the-cka-exam-cost)
-- [CKA vs CKAD vs CKS — Which One Should You Take?](#cka-vs-ckad-vs-cks--which-one-should-you-take)
-- [CKA vs CKAD vs CKS Scope Architecture Diagram](#cka-vs-ckad-vs-cks-scope-architecture-diagram)
-- [What Changed in Kubernetes v1.35 for CKA](#what-changed-in-kubernetes-v135-for-cka)
-- [Before You Book the CKA Exam](#before-you-book-the-cka-exam)
-- [CKA FAQ — Common Questions](#cka-faq--common-questions)
-
-### Final Thoughts
-- [Final Words](#final-words)
-
----
-
-## Local Cluster Setup — Practice with Kind
-
-**Don't have a Kubernetes cluster?** Use the included script to bootstrap a local k8s 1.35.1 cluster via [kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker). Perfect for running through all 31 exercises without needing a kubeadm setup.
-
-### Quick Start: One Command
-
-```bash
-bash scripts/init-cluster.sh
-```
-
-**What it does:**
-- ✅ Detects your OS and architecture (x86_64, aarch64, etc.)
-- ✅ Auto-installs `kind` if missing (v0.31.0)
-- ✅ Validates Docker is running
-- ✅ Creates a named cluster `cka-practice` with k8s 1.35.1
-- ✅ Configures kubeconfig automatically
-- ✅ Prints next steps on success
-
-### Detailed Setup (if needed manually)
-
-**Prerequisites:**
-- [Docker](https://docs.docker.com/get-docker/) — installed and running
-- `kubectl` — installed (via [official docs](https://kubernetes.io/docs/tasks/tools/) or `brew install kubectl`)
-- ~5 GB free disk space
-- ~2GB free RAM (kind cluster runs in that)
-
-**Script Options:**
-
-```bash
-# Create a new cluster (or use existing)
-bash scripts/init-cluster.sh
-
-# Recreate the cluster (wipe and start fresh)
-bash scripts/init-cluster.sh --recreate
-
-# Show help
-bash scripts/init-cluster.sh --help
-```
-
-**After setup:**
-1. Run the exam-setup script to configure aliases: `bash scripts/exam-setup.sh`
-2. Verify connection: `kubectl get nodes` — should show one node `cka-practice-control-plane`
-3. Start an exercise: `cd exercises/01-pod-basics && cat README.md`
-
-### Using Your Own Cluster
-
-If you already have:
-- A kubeadm cluster (bare metal / VMs)
-- An existing kind cluster
-- A cloud cluster (EKS, GKE, AKS) — **not recommended for CKA practice** (different tooling)
-
-Then skip init-cluster.sh and just run:
-```bash
-bash scripts/exam-setup.sh        # Configure aliases, etc.
-kubectl get nodes                 # Verify connection
-cd exercises/01-pod-basics        # Start practicing
-```
-
----
-
-## CKA Exam Details — Cost, Duration, Passing Score, Format (March 2026)
-
-| **CKA Exam Details**               | **Information**                                                                                                                                     |
-|------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Exam Type**                      | Performance-based (live terminal — NOT multiple choice)                                                                                             |
-| **Exam Duration**                  | 2 hours                                                                                                                                             |
-| **Passing Score**                  | 66%                                                                                                                                                 |
-| **Kubernetes Version**             | v1.35                                                                                                                                               |
-| **Number of Questions**            | ~17-25 tasks (varies per session)                                                                                                                   |
-| **Exam Cost**                      | $445 USD (includes one free retake)                                                                                                                 |
-| **Certificate Validity**           | 2 years                                                                                                                                             |
-| **Exam Delivery**                  | PSI Secure Browser (remote proctored)                                                                                                               |
-| **Allowed Resources**              | kubernetes.io/docs, kubernetes.io/blog, github.com/kubernetes — open in exam browser                                                                |
-| **Domains Covered**               | 5 domains: Storage, Troubleshooting, Workloads & Scheduling, Cluster Architecture, Services & Networking                                            |
-| **Exam Language**                  | English, Japanese, Simplified Chinese                                                                                                                |
-| **OS in Exam**                     | Ubuntu Linux terminal                                                                                                                                |
-
-Important: the passing score is 66%, not 75% like some older guides say. They lowered it. Still not easy though — 2 hours goes fast when you're troubleshooting a broken kubelet under pressure.
-
-[Back to top](#table-of-contents)
-
----
-
-## How Much Does the CKA Exam Cost?
-
-The CKA costs **$445 USD** as of March 2026. That includes:
-
-- One exam attempt
-- One free retake (if you fail)
-- Two killer.sh simulator sessions (24 hours each)
-- Access to a self-paced training course
-
-Discount tips:
-- The CNCF runs sales on Black Friday and KubeCon weeks — I've seen 30-40% off
-- Linux Foundation bundles (CKA + CKAD) sometimes drop to ~$500 total
-- Check if your employer has a training budget — most do for certs
-- Student discounts exist through the Linux Foundation
-
-Don't pay full price if you can wait for a sale. I paid around $300 during a KubeCon promo.
-
----
-
-## CKA vs CKAD vs CKS — Which One Should You Take?
-
-| | **CKA** | **CKAD** | **CKS** |
-|---|---|---|---|
-| **Focus** | Cluster administration | Application development | Security |
-| **Who it's for** | SREs, platform engineers, admins | Developers deploying to K8s | Security engineers, senior admins |
-| **Difficulty** | Hard — the troubleshooting and etcd questions are brutal under time pressure | Medium — if you already deploy to K8s, most of this is familiar | Hardest of the three — Falco and AppArmor syntax is miserable to memorize |
-| **Duration** | 2 hours | 2 hours | 2 hours |
-| **Passing Score** | 66% | 66% | 67% |
-| **Cost** | $445 | $445 | $445 |
-| **Prerequisites** | None | None | Must hold active CKA |
-| **Key Topics** | etcd, kubeadm, RBAC, troubleshooting, networking | Pods, Deployments, Jobs, probes, volumes | Falco, AppArmor, OPA, Network Policies, audit |
-| **Questions** | ~17-25 | ~15-20 | ~15-20 |
-| **My honest take** | Start here if you manage clusters. The etcd and kubeadm skills don't exist anywhere else. | Easier than CKA but less impressive on a resume. | Skip unless your job requires it — the ROI is lower. |
-
-My take: if you're doing any kind of cluster administration, start with CKA. If you're purely a dev who deploys apps, CKAD first. CKS requires an active CKA, so you can't skip it.
-
-There's about 40% overlap between CKA and CKAD (pods, deployments, services, configmaps, secrets). If you pass one, the other is easier. I did CKA first because troubleshooting and etcd backup are harder to learn on your own.
-
----
-
-## CKA vs CKAD vs CKS Scope Architecture Diagram
-
-```mermaid
-graph TB
-    subgraph CKA["CKA — Cluster Administration"]
-        style CKA fill:#326CE5,color:#fff
-        A1[etcd backup/restore]
-        A2[kubeadm install/upgrade]
-        A3[RBAC — Roles, ClusterRoles]
-        A4[Node management — drain, cordon]
-        A5[Troubleshooting — kubelet, kube-proxy, CoreDNS]
-        A6[Cluster networking — CNI, Services]
-        A7[Storage — PV, PVC, StorageClass]
-    end
-    
-    subgraph CKAD["CKAD — Application Development"]
-        style CKAD fill:#00A86B,color:#fff
-        B1[Multi-container pods — sidecars, init]
-        B2[Jobs, CronJobs]
-        B3[Probes — liveness, readiness, startup]
-        B4[Helm charts]
-        B5[Custom Resource Definitions]
-        B6[Blue/green, canary deployments]
-    end
-    
-    subgraph SHARED["Shared (~40% overlap)"]
-        style SHARED fill:#FF8C00,color:#fff
-        S1[Pods, Deployments, Services]
-        S2[ConfigMaps, Secrets]
-        S3[NetworkPolicies]
-        S4[Ingress / Gateway API]
-        S5[Labels, selectors, annotations]
-        S6[Resource requests/limits]
-    end
-    
-    subgraph CKS["CKS — Security"]
-        style CKS fill:#DC143C,color:#fff
-        C1[Falco runtime security]
-        C2[AppArmor / Seccomp profiles]
-        C3[OPA Gatekeeper]
-        C4[Audit logging]
-        C5[Image scanning — Trivy]
-        C6[Pod Security Standards]
-        C7[Supply chain security]
-    end
-    
-    CKA -->|"~40% overlap"| CKAD
-    CKA -->|"required for"| CKS
-```
-
----
-
-## What Changed in Kubernetes v1.35 for CKA
-
-If you're studying from a guide written for v1.29 or v1.30, some of it is wrong. I found this out the hard way — half my bookmarked blog posts had outdated sidecar syntax and still referenced `--record` on rollouts. Here's what actually changed that matters for the CKA:
-
-| Feature | Status in v1.35 | CKA Impact |
-|---|---|---|
-| **Sidecar containers (native)** | GA | Init containers with `restartPolicy: Always` run as sidecars. You'll see this on the exam. |
-| **In-place pod vertical scaling** | Beta | Can resize CPU/memory without restarting. I spent 30 minutes learning this and it wasn't on my exam. Know it exists, move on. |
-| **Gateway API** | GA (v1.2+) | Replacing Ingress long-term. I got a question on this. Know how to create a Gateway and an HTTPRoute that points to a backend service. |
-| **cgroup v2** | Default | All nodes use cgroup v2 now. Affects resource monitoring and limits. |
-| **kubectl debug** | GA | `k debug node/<name>` and `k debug pod/<name>` — useful for troubleshooting tasks. |
-| **ValidatingAdmissionPolicy** | GA | CEL-based admission without webhooks. I didn't get this on my exam but it's in the curriculum now. Worth 15 minutes of study. |
-| **Pod Scheduling Readiness** | GA | Pods can wait in scheduling gates. Not likely to show up on the exam. |
-| **CSI migration complete** | Done | In-tree volume plugins fully migrated. StorageClass provisioners are all CSI now. |
-
-The big ones for exam prep: native sidecars and Gateway API. If your study material doesn't cover these, it's outdated.
-
----
-
-## Before You Book the CKA Exam
-
-Checklist I wish someone had given me before I started booking:
-
-1. **Can you set up a cluster from scratch with kubeadm?** I couldn't the first time I tried. Took me 3 attempts before I could do it without the docs open. Do it at least twice before booking.
-2. **Can you do an etcd backup and restore?** This is almost guaranteed to show up. I practiced this 10+ times. The cert flags need to be muscle memory, not something you look up.
-3. **Are you comfortable with RBAC?** Role vs ClusterRole, RoleBinding vs ClusterRoleBinding, ServiceAccounts — I fumbled the `--as=system:serviceaccount:ns:name` syntax for weeks before it clicked.
-4. **Can you troubleshoot a NotReady node?** SSH in, check kubelet, check certificates, check networking. This is 30% of the score and it's the section where most people lose the most time.
-5. **Do you have a cluster to practice on?** kind or minikube on your laptop, or Killercoda/KodeKloud online. You cannot pass this exam by reading — you have to break things.
-6. **Have you done killer.sh at least once?** killer.sh is good practice but don't assume the real exam is easier. Both have tricky questions. Killer.sh builds speed and confidence, which matters more. My first killer.sh score was terrible. That's normal.
-7. **Is your ID ready?** Government-issued ID, matching your CNCF account name. Check this before exam day.
-
----
-
-## The Exam Environment (PSI Remote Desktop)
-
-The exam runs in a PSI Secure Browser — a remote Ubuntu desktop. Things that surprised me:
-
-**Copy/Paste:**
-- `Ctrl+Shift+C` / `Ctrl+Shift+V` in the terminal
-- Right-click paste works sometimes, sometimes it doesn't
-- The built-in notepad uses normal `Ctrl+C` / `Ctrl+V`
-- Practice these shortcuts. I wasted 2 minutes fumbling with paste in the first question.
-
-**Terminal quirks:**
-- There's a small delay on every keystroke — maybe 50-100ms. It adds up.
-- Tab completion works but feels laggy.
-- You can open multiple terminal tabs. I used two: one for the task, one for verification.
-- The file browser is basic. Stick to command line.
-
-**Browser:**
-- One extra tab allowed for kubernetes.io documentation
-- Bookmarks are not available — you'll type URLs manually
-- The search on kubernetes.io is your best friend. Use it instead of navigating.
-
-**General:**
-- Webcam and mic are on the entire time
-- Clear your desk — nothing on it except your computer
-- No second monitor
-- No headphones/earphones
-- Water bottle is fine (clear, no label)
-- Bathroom breaks are allowed but the timer doesn't pause
-
----
-
-## Important: Exam Environment vs Practice
-
-**In the exam, each question is a fresh SSH connection.** Any aliases or configuration you set up will NOT carry over to the next question. Do not waste exam time on setup.
-
-**Only reliable shortcut:** The `k` alias for `kubectl` is pre-configured on every machine.
-
-**For practice on your laptop,** you can use the setup script in [`scripts/exam-setup.sh`](scripts/exam-setup.sh) to speed up drilling. But practice without these shortcuts 1-2 weeks before the exam to build command muscle memory. You need to know:
-- `kubectl run ...`
-- `kubectl create ...`
-- `--dry-run=client -o yaml` (type it out, not an alias)
-- `--force --grace-period=0` (type it out, not an alias)
-
-Memorize the commands. That beats any alias on test day.
-
----
-
-## Imperative Commands Quick Reference
-
-**Why imperative?** Under exam pressure (2 hours, ~17 tasks), typing YAML is slow. The CKA expects speed. Most questions can be solved faster with imperative commands than writing manifests. Declarative is for when you need complex control or for learning.
-
-**Speed tip:** Memorize these command patterns. On test day, `kubectl run`, `kubectl create`, and `kubectl expose` will be your fastest friends.
-
-### Fast Pod Creation (15-30 seconds vs 2 minutes for YAML)
-
-```bash
-# Basic pod
-k run nginx --image=nginx:1.27
-
-# Pod with port exposed
-k run nginx --image=nginx:1.27 --port=80
-
-# Pod with labels
-k run nginx --image=nginx:1.27 --labels=app=web,tier=frontend
-
-# There is no direct command to run pod with resource limits, instead you can use dry-run then edit file or use --overrides arg
-k run nginx --image=nginx --overrides='{"spec":{"containers":[{"name":"nginx","image":"nginx","resources":{"requests":{"cpu":"100m","memory":"128Mi"},"limits":{"cpu":"200m","memory":"256Mi"}}}]}}'
-
-# Pod with environment variables
-k run nginx --image=nginx:1.27 --env=LOG_LEVEL=debug --env=APP_ENV=prod
-
-# Pod with command override
-k run nginx --image=nginx:1.27 -- sh -c "echo 'Hello' && sleep 3600"
-
-# Pod with multiple containers (init + app)
-k run myapp --image=myapp:1.0 --overrides='{"spec":{"initContainers":[{"name":"init","image":"busybox","command":["wget","-O","/data/file","http://example.com"]}],"containers":[{"name":"myapp","image":"myapp:1.0","volumeMounts":[{"name":"data","mountPath":"/data"}]}],"volumes":[{"name":"data","emptyDir":{}}]}}'
-
-# Generate YAML without running (for review/editing)
-k run nginx --image=nginx:1.27 $do > pod.yaml
-```
-
-**Exam pattern:** Use `$do` flag to generate YAML, review it, then apply. Saves you from memorizing exact YAML structure.
-
-### Deployment Creation & Management (Most exam questions)
-
-```bash
-# Basic deployment
-k create deployment webapp --image=nginx:1.27
-
-# Deployment with replicas
-k create deployment webapp --image=nginx:1.27 --replicas=3
-
-# Deployment with resource requests
-k create deployment webapp --image=nginx:1.27 --replicas=3 --dry-run=client -o yaml | \
-  sed 's/resources: {}/resources:\n              requests:\n                cpu: 100m\n                memory: 128Mi/' > deploy.yaml
-
-# Scale deployment
-k scale deployment webapp --replicas=5
-
-# Update image (rolling update)
-k set image deployment/webapp nginx=nginx:1.28 --record
-
-# Check rollout status
-k rollout status deployment/webapp
-
-# View rollout history
-k rollout history deployment/webapp
-
-# Rollback to previous version
-k rollout undo deployment/webapp
-
-# Rollback to specific revision
-k rollout undo deployment/webapp --to-revision=2
-
-# Pause rollout (for manual canary)
-k rollout pause deployment/webapp
-
-# Resume rollout
-k rollout resume deployment/webapp
-
-# Generate deployment YAML
-k create deployment webapp --image=nginx:1.27 --dry-run=client -o yaml > deploy.yaml
-```
-
-**Exam tip:** Rollout commands appear on almost every CKA exam. Practice `rollout undo` and `rollout history` until they're muscle memory.
-
-### Service Exposure (ClusterIP, NodePort, LoadBalancer)
-
-```bash
-# Expose deployment as ClusterIP (default, internal only)
-k expose deployment webapp --port=80 --target-port=8080
-
-# Expose as NodePort (accessible on all nodes)
-k expose deployment webapp --port=80 --target-port=8080 --type=NodePort
-
-# Expose as LoadBalancer (cloud-only)
-k expose deployment webapp --port=80 --target-port=8080 --type=LoadBalancer
-
-# Get service external IP (NodePort/LoadBalancer)
-k get svc -w
-
-# Expose a pod directly (not recommended but does work)
-k expose pod nginx --port=80 --name=web-svc
-
-# Create service without deploying (generate YAML)
-k create service clusterip web --tcp=80:8080 $do > svc.yaml
-k create service nodeport web --tcp=80:8080 $do > svc.yaml
-
-# Edit service after creation
-k edit svc webapp
-
-# Port forward for testing (like accessing the pod locally)
-k port-forward svc/webapp 8080:80
-```
-
-**Exam pattern:** Most questions ask: "Expose deployment X on port Y." Use `k expose deployment X --port=Y --target-port=<app-port>`.
-
-### RBAC — Roles, ServiceAccounts, RoleBindings (25% of exam)
-
-```bash
-# Create ServiceAccount
-k create sa my-app -n prod
-
-# Create Role (allow specific verbs on specific resources)
-k create role pod-reader --verb=get,list,watch --resource=pods -n prod
-k create role pod-deleter --verb=get,list,delete --resource=pods -n prod
-
-# Create RoleBinding (bind role to user/sa)
-k create rolebinding read-pods --role=pod-reader --serviceaccount=prod:my-app -n prod
-
-# ClusterRole (cross-namespace)
-k create clusterrole node-reader --verb=get,list --resource=nodes
-
-# ClusterRoleBinding
-k create clusterrolebinding read-nodes --clusterrole=node-reader --serviceaccount=prod:my-app
-
-# Check if user/SA has permission
-k auth can-i list pods -n prod --as=system:serviceaccount:prod:my-app
-
-# Check your own permissions
-k auth can-i list pods -n prod
-
-# View role details
-k get role pod-reader -n prod -o yaml
-k get rolebinding read-pods -n prod -o yaml
-
-# Edit role to add/remove permissions
-k edit role pod-reader -n prod
-```
-
-**Exam tip:** RBAC questions usually involve creating SA + Role + RoleBinding, then testing with `k auth can-i`. Practice the syntax until you don't have to think.
-
-### ConfigMaps & Secrets (Application config)
-
-```bash
-# ConfigMap from literal values
-k create configmap app-config --from-literal=LOG_LEVEL=debug --from-literal=DB_HOST=postgres.prod
-
-# ConfigMap from file
-k create configmap app-config --from-file=config.properties
-
-# ConfigMap from directory
-k create configmap app-config --from-file=./configs/
-
-# Secret from literal
-k create secret generic db-secret --from-literal=username=admin --from-literal=password=secret123
-
-# Secret from file
-k create secret generic tls-secret --from-file=tls.crt=cert.pem --from-file=tls.key=key.pem
-
-# Docker registry secret (for pulling private images)
-k create secret docker-registry dockerhub --docker-server=docker.io --docker-username=myuser --docker-password=mypass
-
-# View secret (NOT decrypted)
-k get secret db-secret -o yaml
-
-# Describe configmap
-k describe cm app-config
-```
-
-**Exam pattern:** When a question mentions "app needs config from file," use `k create configmap $name --from-file`.
-
-### Node Management (Maintenance, upgrades, troubleshooting)
-
-```bash
-# Cordon node (mark unschedulable, don't evict existing pods)
-k cordon node-1
-
-# Drain node (evict all pods before maintenance)
-k drain node-1 --ignore-daemonsets --delete-emptydir-data
-
-# Uncordon node (resume scheduling)
-k uncordon node-1
-
-# Label a node
-k label nodes node-1 disk=ssd
-k label nodes node-1 disk=ssd --overwrite  # update existing
-
-# Taint a node (prevent pods from scheduling)
-k taint nodes node-1 key=value:NoSchedule
-k taint nodes node-1 key=value:NoExecute   # evict existing pods
-
-# Remove taint
-k taint nodes node-1 key-
-
-# Get node info (CPU, memory, conditions)
-k describe node node-1
-
-# Check node status
-k get nodes -o wide
-```
-
-**Exam pattern:** "Prepare node for maintenance" = `k drain`. "Node is full" = label it and use nodeSelector. "Node needs maintenance" = `k cordon` + `k drain`.
-
-### Debugging & Troubleshooting (30% of exam — learn this well)
-
-```bash
-# Get pod logs (follow in real-time)
-k logs pod-name
-k logs pod-name -f
-k logs pod-name --tail=50
-
-# Logs from previous crashed pod
-k logs pod-name --previous
-
-# Logs from all containers in pod
-k logs pod-name --all-containers
-
-# Logs from specific container in multi-container pod
-k logs pod-name -c container-name
-
-# Short-lived troubleshooting — exec into pod
-k exec -it pod-name -- /bin/bash
-k exec -it pod-name -c container-name -- /bin/bash
-
-# One-off command in pod
-k exec pod-name -- curl http://localhost:8080
-
-# Describe pod (events, conditions, resource usage)
-k describe pod pod-name
-
-# Describe everything about a resource
-k describe node node-1
-
-# Watch events in real-time
-k get events -w
-
-# Get specific event from a namespace
-k get events -n prod --sort-by='.lastTimestamp'
-
-# Port forward to debug (useful when service isn't working)
-k port-forward pod-name 8080:8080
-k port-forward svc/service-name 8080:8080
-
-# Copy files from pod to local (for log inspection)
-k cp pod-name:/var/log/app.log ./app.log
-
-# Check resource metrics (requires metrics-server)
-k top nodes
-k top pods -n prod
-```
-
-**Exam tip:** 30% of exam is "troubleshoot why this isn't working." `k describe` and `k logs` are your debugging weapons. Learn to read the error messages.
-
-### Resource Quotas & Limits (Cluster resource management)
-
-```bash
-# Create LimitRange (per-pod limits)
-k create limitrange cpu-limit --max=2 --min=100m --type=Pod
-
-# Resource quota (per-namespace total limits)
-k create quota my-quota --hard=requests.cpu=10,limits.cpu=20,requests.memory=100Gi,pods=100
-
-# Check current usage
-k describe resourcequota my-quota -n prod
-k describe limitrange cpu-limit -n prod
-```
-
-**Exam pattern:** Usually appears as "create resource quota so namespace doesn't exceed X CPU."
-
-### Shortcuts & Pro Tips (Save 5-10 minutes per exam)
-
-```bash
-# Dry-run + output to file (review before applying)
-k create deployment app --image=app:1.0 $do > deploy.yaml
-k apply -f deploy.yaml
-
-# Delete resources fast
-k delete pod pod-name $now          # force deletion
-k delete pods --all -n prod --now   # delete all pods in namespace
-k delete deployment webapp -n prod  # cascade delete (pods too)
-
-# Get resources in all namespaces
-k get pods -A
-k get pods --all-namespaces
-
-# Get in custom columns (useful for spotting issues)
-k get pods -o wide                  # show node, IP, etc.
-k get pods -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image
-
-# JSONPath queries (find pods by image)
-k get pods -o jsonpath='{.items[*].metadata.name}' | xargs -I{} echo {}
-
-# Get yaml for an existing resource then copy it
-k get deployment webapp -o yaml > webapp-backup.yaml
-k apply -f webapp-backup.yaml
-
-# Edit resource live
-k edit deployment webapp
-
-# Patch resource (update specific field)
-k patch deployment webapp -p '{"spec":{"replicas":5}}'
-```
-
----
-
-## Docs Pages I Actually Used During the Exam
-
-You can access kubernetes.io during the exam. These are the pages I remember opening — there were probably others I clicked through but these are the ones I went back to:
-
-| Topic | Page |
-|---|---|
-| kubectl cheat sheet | https://kubernetes.io/docs/reference/kubectl/cheatsheet/ |
-| etcd backup/restore | https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/ |
-| kubeadm upgrade | https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/ |
-| RBAC | https://kubernetes.io/docs/reference/access-authn-authz/rbac/ |
-| NetworkPolicy | https://kubernetes.io/docs/concepts/services-networking/network-policies/ |
-| PV / PVC | https://kubernetes.io/docs/concepts/storage/persistent-volumes/ |
-| Static pods | https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/ |
-| Taints and tolerations | https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
-| Debug services | https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/ |
-| CoreDNS | https://kubernetes.io/docs/tasks/administer-cluster/coredns/ |
-| Ingress | https://kubernetes.io/docs/concepts/services-networking/ingress/ |
-| Gateway API | https://kubernetes.io/docs/concepts/services-networking/gateway/ |
-| Drain a node | https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/ |
-
-Tip: use the search bar on kubernetes.io. Don't waste time clicking through navigation menus.
-
----
-
-## kubectl Cheat Sheet for CKA
-
-These are the commands I used most during the exam. All using the aliases from the setup section.
-
-### Context and Namespace
-
-```bash
-# Switch context (DO THIS BEFORE EVERY QUESTION)
-k config use-context <context-name>
-
-# Set default namespace
-kn <namespace>
-
-# Check current context
-k config current-context
-```
-
-### Pods
-
-```bash
-# Create a pod
-k run nginx --image=nginx:1.27
-
-# Create pod YAML without running it
-k run nginx --image=nginx:1.27 $do > pod.yaml
-
-# Pod with labels
-k run nginx --image=nginx:1.27 --labels=app=web,tier=frontend
-
-# Pod with port
-k run nginx --image=nginx:1.27 --port=80
-
-# Get pods with extra info
-k get pods -o wide
-k get pods --show-labels
-k get pods -l app=web
-
-# Delete pod fast
-k delete pod nginx $now
-```
-
-### Deployments
-
-```bash
-# Create deployment
-k create deployment webapp --image=nginx:1.27 --replicas=3
-
-# Generate YAML
-k create deployment webapp --image=nginx:1.27 --replicas=3 $do > deploy.yaml
-
-# Scale
-k scale deployment webapp --replicas=5
-
-# Update image
-k set image deployment/webapp nginx=nginx:1.28
-
-# Rollout commands
-k rollout status deployment/webapp
-k rollout history deployment/webapp
-k rollout undo deployment/webapp
-k rollout undo deployment/webapp --to-revision=2
-```
-
-### Services
-
-```bash
-# Expose a deployment
-k expose deployment webapp --port=80 --target-port=80 --type=ClusterIP
-k expose deployment webapp --port=80 --target-port=80 --type=NodePort
-
-# Expose a pod
-k expose pod nginx --port=80 --name=nginx-svc
-
-# Generate service YAML
-k create service clusterip my-svc --tcp=80:80 $do > svc.yaml
-```
-
-### RBAC
-
-```bash
-# Create ServiceAccount
-k create sa my-sa -n my-ns
-
-# Create Role
-k create role pod-reader --verb=get,list,watch --resource=pods -n my-ns
-
-# Create RoleBinding
-k create rolebinding read-pods --role=pod-reader --serviceaccount=my-ns:my-sa -n my-ns
-
-# Create ClusterRole
-k create clusterrole node-reader --verb=get,list --resource=nodes
-
-# Create ClusterRoleBinding
-k create clusterrolebinding read-nodes --clusterrole=node-reader --serviceaccount=my-ns:my-sa
-
-# Check permissions
-k auth can-i list pods -n my-ns --as=system:serviceaccount:my-ns:my-sa
-```
-
-### Node Management
-
-```bash
-# Cordon (mark unschedulable)
-k cordon <node-name>
-
-# Drain (evict pods)
-k drain <node-name> --ignore-daemonsets --delete-emptydir-data
-
-# Uncordon
-k uncordon <node-name>
-
-# Label a node
-k label node <node-name> disk=ssd
-
-# Taint a node
-k taint nodes <node-name> key=value:NoSchedule
-
-# Remove a taint
-k taint nodes <node-name> key=value:NoSchedule-
-```
-
-### etcd
-
-```bash
-# Snapshot
-ETCDCTL_API=3 etcdctl snapshot save /tmp/etcd-backup.db \
-  --endpoints=https://127.0.0.1:2379 \
-  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
-  --cert=/etc/kubernetes/pki/etcd/server.crt \
-  --key=/etc/kubernetes/pki/etcd/server.key
-
-# Verify snapshot
-ETCDCTL_API=3 etcdctl snapshot status /tmp/etcd-backup.db --write-table
-
-# Restore
-ETCDCTL_API=3 etcdctl snapshot restore /tmp/etcd-backup.db \
-  --data-dir=/var/lib/etcd-restored
-```
-
-### Troubleshooting
-
-```bash
-# Node issues
-k get nodes
-k describe node <node-name>
-ssh <node> -- sudo systemctl status kubelet
-ssh <node> -- sudo journalctl -u kubelet --no-pager | tail -30
-
-# Pod issues
-k describe pod <pod-name>
-k logs <pod-name>
-k logs <pod-name> -c <container-name>
-k logs <pod-name> --previous
-
-# Service/endpoint issues
-k get endpoints <service-name>
-k get svc
-k describe svc <service-name>
-
-# DNS
-k run test-dns --image=busybox:1.36 --rm -it -- nslookup kubernetes
-k get pods -n kube-system -l k8s-app=kube-dns
-
-# Debug node
-k debug node/<node-name> -it --image=busybox:1.36
-```
-
-### Quick YAML Generation
-
-```bash
-# Pod
-k run nginx --image=nginx:1.27 $do > pod.yaml
-
-# Deployment
-k create deployment webapp --image=nginx:1.27 $do > deploy.yaml
-
-# Service
-k expose deployment webapp --port=80 $do > svc.yaml
-
-# Job
-k create job my-job --image=busybox:1.36 -- sh -c "echo done" $do > job.yaml
-
-# CronJob
-k create cronjob my-cron --image=busybox:1.36 --schedule="*/5 * * * *" -- sh -c "echo tick" $do > cron.yaml
-
-# ConfigMap
-k create configmap my-cm --from-literal=key=value $do > cm.yaml
-
-# Secret
-k create secret generic my-secret --from-literal=pass=s3cret $do > secret.yaml
-```
-
-[Back to top](#table-of-contents)
-
----
-
-## CKA Syllabus Breakdown (v1.35)
-
-### Domain 1 — Storage (10%)
-
-10% of the score. Sounds small, but the questions are straightforward if you understand PV/PVC binding. I almost skipped this in my study plan and then it showed up as one of the easiest points on the exam. The main trap: `storageClassName` has to match exactly between PV and PVC, and "exactly" includes the case where one side has it set and the other doesn't.
-
-> See also: [Exercise 12 — Storage](exercises/12-storage-pv-pvc/) | Skeletons: [pv.yaml](skeletons/pv.yaml), [pvc.yaml](skeletons/pvc.yaml), [storageclass.yaml](skeletons/storageclass.yaml)
-
-#### 1.1 — Understand Storage Classes and Persistent Volumes
-
-Storage on Kubernetes is simple in concept but annoying in practice. A **PV** is the actual storage (think: the hard drive). A **PVC** is a request for that storage (think: "I need 2Gi of disk"). A **StorageClass** tells Kubernetes how to dynamically create PVs when a PVC asks for one.
-
-What actually matters for the exam:
-- PV is cluster-scoped (no namespace). PVC is namespace-scoped. I mixed these up and created a PVC in the wrong namespace — it bound fine but the pod couldn't see it.
-- PVC binds to a PV when: capacity >= request, accessModes match, AND storageClassName matches. If any one of these is off, the PVC sits in `Pending` forever with no helpful error message.
-- The `storageClassName` trap is real. `manual` ≠ `Manual` ≠ empty string. Triple-check it.
-
-```yaml
-# PV — cluster-scoped
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: my-pv
-spec:
-  capacity:
-    storage: 5Gi
-  accessModes:
-  - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
-  hostPath:
-    path: /data/my-pv
-```
-
-```yaml
-# PVC — namespace-scoped
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: my-pvc
-  namespace: default
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 2Gi
-  storageClassName: manual
-```
-
-```yaml
-# Pod using PVC
-apiVersion: v1
-kind: Pod
-metadata:
-  name: storage-pod
-spec:
-  containers:
-  - name: app
-    image: nginx:1.27
-    volumeMounts:
-    - name: data
-      mountPath: /usr/share/nginx/html
-  volumes:
-  - name: data
-    persistentVolumeClaim:
-      claimName: my-pvc
-```
-
-#### 1.2 — Understand Volume Mode, Access Modes, and Reclaim Policies
-
-**Access Modes** — you need to know the four-letter abbreviations:
-
-| Mode | Short | What it actually means |
-|---|---|---|
-| ReadWriteOnce | RWO | One node can mount read-write. This is what you'll use 90% of the time. |
-| ReadOnlyMany | ROX | Many nodes can mount read-only. Rarely comes up on the exam. |
-| ReadWriteMany | RWX | Many nodes can mount read-write. Doesn't work with hostPath — I tried. |
-| ReadWriteOncePod | RWOP | Only one pod can mount read-write. New in v1.29+, might show up. |
-
-**Reclaim Policies** — know the difference or you'll lose data:
-
-| Policy | What actually happens |
-|---|---|
-| Retain | PV survives PVC deletion. Data is safe but you have to manually clean up the PV before it can be reused. |
-| Delete | PV and the underlying storage get nuked. This is the default for most cloud StorageClasses. Be careful. |
-| Recycle | Deprecated. Don't use it, don't memorize it. |
-
-**Volume Modes:**
-- `Filesystem` (default) — mounted as a directory
-- `Block` — raw block device, no filesystem
-
-On the exam: know the difference between Retain and Delete. If the question says "data should persist after PVC deletion," use Retain.
-
-#### 1.3 — Configure Applications with Persistent Storage
-
-The pattern is always the same:
-1. Create PV (or let StorageClass provision it dynamically)
-2. Create PVC referencing the StorageClass
-3. Mount PVC in the Pod spec
-
-```yaml
-# StorageClass for dynamic provisioning
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: fast
-provisioner: kubernetes.io/no-provisioner
-reclaimPolicy: Retain
-volumeBindingMode: WaitForFirstConsumer
-```
-
-`WaitForFirstConsumer` delays binding until a pod actually needs the volume. This avoids scheduling issues where the PV is on node A but the pod lands on node B.
-
-Common gotcha: forgetting `storageClassName`. If the PVC has `storageClassName: ""` (empty string), it only binds to PVs with no StorageClass. If you set `storageClassName: manual`, the PV must also have `storageClassName: manual`.
-
----
-
-### Domain 2 — Troubleshooting (30%)
-
-This is the biggest domain — 30% of the score. You'll get several questions asking you to fix broken things. This is where I lost the most time in early practice because I had no system. I'd randomly check pods, then nodes, then pods again. Once I built a consistent troubleshooting order (nodes → kubelet → control plane pods → describe → logs → endpoints), my accuracy went way up.
-
-> See also: [Exercise 11 — Troubleshoot Cluster](exercises/11-troubleshoot-cluster/) | [Troubleshooting Decision Flowchart](#troubleshooting-decision-flowchart)
-
-#### 2.1 — Evaluate Cluster and Node Logging
-
-Where to find logs:
-
-| Component | Log Location |
-|---|---|
-| kubelet | `journalctl -u kubelet` (systemd service) |
-| kube-apiserver | `/var/log/kube-apiserver.log` or `k logs -n kube-system kube-apiserver-<node>` |
-| kube-scheduler | `k logs -n kube-system kube-scheduler-<node>` |
-| kube-controller-manager | `k logs -n kube-system kube-controller-manager-<node>` |
-| etcd | `k logs -n kube-system etcd-<node>` |
-| Container runtime | `journalctl -u containerd` |
-
-Control plane components run as static pods (in `/etc/kubernetes/manifests/`), so you can check their logs with `k logs`. But kubelet is a systemd service — use `journalctl`.
-
-```bash
-# Check node status
-k get nodes
-k describe node <node-name>
-
-# Check kubelet on a node
-ssh <node>
-sudo systemctl status kubelet
-sudo journalctl -u kubelet --no-pager | tail -50
-
-# Check control plane pods
-k get pods -n kube-system
-```
-
-#### 2.2 — Monitor Applications
-
-Honestly, monitoring during the exam boils down to two things: `k describe` and `k get events`. I never used `k top` during my actual exam — metrics-server wasn't available on every cluster. But know it exists in case they ask.
-
-```bash
-# These two are 90% of exam monitoring
-k describe pod <pod-name>       # events section at bottom tells you everything
-k get events --sort-by='.lastTimestamp'
-
-# The rest — know them, probably won't need them
-k get pods
-k top pods
-k top nodes
-k get events -n <namespace> --field-selector reason=Failed
-```
-
-#### 2.3 — Container stdout/stderr Logs
-
-The two you'll actually use on the exam: `k logs <pod>` and `k logs <pod> --previous`. That's it. The rest are nice-to-know but I never needed `-f` or `--tail` under exam time pressure.
-
-```bash
-# The essentials
-k logs <pod-name>
-k logs <pod-name> --previous                 # crashed container — you'll use this a lot
-k logs <pod-name> -c <container-name>         # multi-container pods
-
-# Rarely needed on the exam but useful
-k logs <pod-name> -f
-k logs <pod-name> --tail=50
-k logs -l app=web --all-containers
-```
-
-#### 2.4 — Troubleshoot Application Failure
-
-The exam gives you a broken pod and you figure out why. After enough practice, you develop a reflex based on the status:
-
-**Pending** — this is the most common one on the exam. 9 times out of 10 it's one of these:
-- PVC not bound → `k get pvc` — check storageClassName matches
-- Taint with no toleration → `k describe node` and look at Taints
-- No resources available → `k describe pod` events will say "Insufficient cpu"
-- Node selector or affinity doesn't match any node → check labels
-- I once spent 5 minutes on a Pending pod that just needed a namespace with a ResourceQuota increased
-
-**CrashLoopBackOff** — the container starts and dies immediately:
-- `k logs <pod> --previous` first. Always. The error is usually obvious.
-- Wrong command/entrypoint is the sneaky one — I got tricked by `["sh", "-c"]` vs `["sh -c"]` once
-- Missing config (env vars, configmaps, secrets)
-
-**ImagePullBackOff** — almost always a typo in the image name. Seriously. Check the image string character by character.
-- Private registry without imagePullSecrets is the other cause, but rare on the exam
-
-**Error / Failed:**
-- `k describe pod` events section → `k logs` → you'll find it
-
-```bash
-# Systematic pod debugging
-k get pod <pod> -o wide          # which node? what IP?
-k describe pod <pod>             # events, conditions
-k logs <pod>                     # app logs
-k logs <pod> --previous          # if it crashed
-k exec <pod> -- cat /etc/resolv.conf   # DNS config
-k exec <pod> -- env                     # env vars loaded?
-```
-
-#### 2.5 — Troubleshoot Cluster Component Failure
-
-When the whole cluster is broken:
-
-```bash
-# 1. Are nodes ready?
-k get nodes
-
-# 2. Are control plane pods running?
-k get pods -n kube-system
-
-# 3. Is kubelet running on the node?
-ssh <node>
-sudo systemctl status kubelet
-sudo systemctl restart kubelet    # try restarting
-
-# 4. Check kubelet logs
-sudo journalctl -u kubelet --no-pager | tail -50
-
-# 5. Are certificates expired?
-sudo kubeadm certs check-expiration
-
-# 6. Is etcd healthy?
-ETCDCTL_API=3 etcdctl endpoint health \
-  --endpoints=https://127.0.0.1:2379 \
-  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
-  --cert=/etc/kubernetes/pki/etcd/server.crt \
-  --key=/etc/kubernetes/pki/etcd/server.key
-
-# 7. Check static pod manifests
-ls /etc/kubernetes/manifests/
-# Should have: etcd.yaml, kube-apiserver.yaml, kube-controller-manager.yaml, kube-scheduler.yaml
-```
-
-Common causes:
-- kubelet not running → `systemctl start kubelet`
-- Wrong static pod manifest → fix YAML in `/etc/kubernetes/manifests/`
-- Certificates expired → `kubeadm certs renew all`
-- etcd data directory wrong → check `--data-dir` in etcd manifest
-- kube-apiserver flag wrong → check manifest, fix, wait for restart
-
-#### 2.6 — Troubleshoot Networking
-
-Service not reachable? Work through this:
-
-```bash
-# 1. Does the service exist and have the right selector?
-k get svc <service>
-k describe svc <service>
-
-# 2. Does the service have endpoints?
-k get endpoints <service>
-# If empty: selector doesn't match any running pod
-
-# 3. Is the pod actually running on the target port?
-k exec <pod> -- wget -qO- localhost:<port>
-
-# 4. DNS working?
-k run test-dns --image=busybox:1.36 --rm -it -- nslookup <service-name>
-
-# 5. Is kube-proxy running?
-k get pods -n kube-system -l k8s-app=kube-proxy
-
-# 6. NetworkPolicy blocking traffic?
-k get networkpolicy -n <namespace>
-```
-
-The most common networking issues on the exam:
-- Service selector doesn't match pod labels (typo in labels)
-- Service targetPort doesn't match container port
-- NetworkPolicy denying traffic (remember: any policy = deny by default for that pod)
-- CoreDNS down or misconfigured
-- kube-proxy not running on a node
-
----
-
-### Domain 3 — Workloads & Scheduling (15%)
-
-15% of the score. Deployments, rolling updates, ConfigMaps, Secrets, static pods, scheduling constraints. I found this the most comfortable domain because it's what you do day-to-day. The gotcha: static pods. I kept trying to delete them with kubectl and wondering why they came back. Once you understand kubelet manages them directly, it clicks.
-
-> See also: [Exercise 01 — Pod Basics](exercises/01-pod-basics/) | [Exercise 06 — Deployment Rollout](exercises/06-deployment-rollout/) | [Exercise 10 — Static Pod](exercises/10-static-pod/)
-
-#### 3.1 — Understand Deployments and How to Perform Rolling Updates and Rollbacks
-
-Deployments manage ReplicaSets, which manage Pods. When you update the image, Kubernetes creates a new ReplicaSet and gradually shifts pods over. The thing that tripped me up: the container name in `k set image` is the container name from the pod spec, not the deployment name. I kept writing `k set image deployment/webapp webapp=nginx:1.27` when the container was actually called `nginx`. Wasted 3 minutes every time.
-
-```bash
-# Create
-k create deployment webapp --image=nginx:1.26 --replicas=3
-
-# Update image (triggers rolling update)
-k set image deployment/webapp nginx=nginx:1.27
-
-# Watch the rollout
-k rollout status deployment/webapp
-
-# Check history
-k rollout history deployment/webapp
-
-# Rollback to previous
-k rollout undo deployment/webapp
-
-# Rollback to specific revision
-k rollout undo deployment/webapp --to-revision=2
-```
-
-Rolling update strategy options:
-
-```yaml
-spec:
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1        # max pods above desired count during update
-      maxUnavailable: 0   # max pods that can be unavailable during update
-```
-
-- `maxSurge: 1, maxUnavailable: 0` = zero-downtime (one extra pod at a time)
-- `maxSurge: 0, maxUnavailable: 1` = no extra pods, one goes down at a time
-- `Recreate` strategy = kill all old pods first, then create new ones (causes downtime)
-
-#### 3.2 — Use ConfigMaps and Secrets to Configure Applications
-
-ConfigMaps hold non-sensitive config. Secrets hold sensitive data (base64-encoded, not encrypted by default).
-
-```bash
-# Create ConfigMap
-k create configmap app-config \
-  --from-literal=APP_MODE=production \
-  --from-literal=LOG_LEVEL=info
-
-# Create Secret
-k create secret generic db-creds \
-  --from-literal=DB_USER=admin \
-  --from-literal=DB_PASS=changeme
-
-# From file
-k create configmap nginx-conf --from-file=nginx.conf
-```
-
-Three ways to inject into a pod:
-
-**1. Environment variables (all keys):**
-```yaml
-envFrom:
-- configMapRef:
-    name: app-config
-- secretRef:
-    name: db-creds
-```
-
-**2. Single key as env var:**
-```yaml
-env:
-- name: DATABASE_USER
-  valueFrom:
-    secretKeyRef:
-      name: db-creds
-      key: DB_USER
-```
-
-**3. Mounted as files:**
-```yaml
-volumeMounts:
-- name: config-vol
-  mountPath: /etc/config
-volumes:
-- name: config-vol
-  configMap:
-    name: app-config
-```
-
-Gotcha: if you mount a ConfigMap as a volume at a directory, it replaces the entire directory. Use `subPath` to mount a single file without replacing the directory.
-
-#### 3.3 — Know How to Scale Applications
-
-```bash
-# Manual scaling
-k scale deployment webapp --replicas=5
-
-# Autoscaling (HPA — not heavily tested on CKA but know it exists)
-k autoscale deployment webapp --min=2 --max=10 --cpu-percent=80
-```
-
-#### 3.4 — Self-Healing Workloads: Deployments, DaemonSets, StatefulSets
-
-The one you'll actually use on the exam is **Deployment**. It manages ReplicaSets, which manage Pods. You create Deployments, you scale them, you update them, you roll them back. That's 90% of this topic.
-
-- **ReplicaSet**: Keeps N pods running. You almost never create these directly — Deployments create them for you.
-- **Deployment**: This is the workhorse. Rolling updates, rollbacks, scaling. Know this cold.
-- **DaemonSet**: One pod per node. Logging agents, monitoring. Comes up occasionally on the exam. The YAML is basically a Deployment without `replicas`.
-- **StatefulSet**: Stable network identity and persistent storage. Barely on the CKA — know it exists, maybe know the headless service pattern, don't spend hours on it.
-
-```yaml
-# DaemonSet — runs on every node
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: log-agent
-spec:
-  selector:
-    matchLabels:
-      app: log-agent
-  template:
-    metadata:
-      labels:
-        app: log-agent
-    spec:
-      tolerations:
-      - key: node-role.kubernetes.io/control-plane
-        operator: Exists
-        effect: NoSchedule
-      containers:
-      - name: agent
-        image: fluentd:v1.17
-        volumeMounts:
-        - name: varlog
-          mountPath: /var/log
-      volumes:
-      - name: varlog
-        hostPath:
-          path: /var/log
-```
-
-#### 3.5 — Understand How Resource Limits Can Affect Pod Scheduling
-
-```yaml
-resources:
-  requests:
-    memory: "64Mi"    # scheduler uses this to find a node
-    cpu: "250m"       # 250 millicores = 0.25 CPU
-  limits:
-    memory: "128Mi"   # OOMKilled if exceeded
-    cpu: "500m"       # throttled if exceeded
-```
-
-- **Requests** = what the scheduler looks at when placing the pod. If no node has enough, pod stays Pending.
-- **Limits** = ceiling. Memory over limit = OOMKilled. CPU over limit = throttled.
-- If you set limits without requests, requests default to limits.
-- LimitRange sets defaults and constraints for a namespace. ResourceQuota caps total usage.
-
-#### 3.6 — Awareness of Manifest Management and Common Templating Tools
-
-On the CKA, you mostly write raw YAML. But know these exist:
-- **Kustomize**: `k apply -k <dir>` — built into kubectl, overlays and patches
-- **Helm**: package manager for Kubernetes — CKA may ask you to install a chart
-- **kubectl $do**: generate YAML with `--dry-run=client -o yaml` and edit it
-
-#### 3.7 — Schedule Pods on Specific Nodes
-
-**nodeSelector** (simplest):
-```yaml
-spec:
-  nodeSelector:
-    disk: ssd
-```
-
-**Node affinity** (more flexible):
-```yaml
-spec:
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: disk
-            operator: In
-            values:
-            - ssd
-```
-
-**Taints and tolerations:**
-
-Taints go on nodes. Tolerations go on pods.
-
-```bash
-# Taint a node
-k taint nodes node1 gpu=true:NoSchedule
-
-# Remove taint
-k taint nodes node1 gpu=true:NoSchedule-
-```
-
-```yaml
-# Pod toleration
-spec:
-  tolerations:
-  - key: "gpu"
-    operator: "Equal"
-    value: "true"
-    effect: "NoSchedule"
-```
-
-Effects:
-- `NoSchedule` — don't schedule new pods (existing stay)
-- `PreferNoSchedule` — try to avoid, but not strict
-- `NoExecute` — evict existing pods too
-
-#### 3.8 — Static Pods
-
-Static pods are managed by the kubelet directly, not the API server. The kubelet watches a directory (usually `/etc/kubernetes/manifests/`) and creates pods from any YAML files it finds there.
-
-```bash
-# Find the static pod path
-cat /var/lib/kubelet/config.yaml | grep staticPodPath
-# Usually: /etc/kubernetes/manifests
-
-# Create a static pod
-sudo tee /etc/kubernetes/manifests/static-web.yaml <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: static-web
-spec:
-  containers:
-  - name: web
-    image: nginx:1.27
-    ports:
-    - containerPort: 80
-EOF
-```
-
-Static pods show up in `kubectl get pods` with the node name appended (e.g., `static-web-node1`). You can't delete them via kubectl — the kubelet recreates them. To remove: delete the manifest file.
-
-Control plane components (kube-apiserver, kube-scheduler, kube-controller-manager, etcd) are all static pods.
-
----
-
-### Domain 4 — Cluster Architecture, Installation & Configuration (25%)
-
-25% of the score. This is the domain that separates CKA from CKAD — etcd, kubeadm, RBAC. If you're coming from CKAD, this is all new and it's where I spent the most study time. etcd backup/restore alone took me a week to get reliable. The `--as=system:serviceaccount:ns:name` syntax for testing RBAC was another thing I had to drill until it was automatic.
-
-> See also: [Exercise 04 — RBAC](exercises/04-rbac/) | [Exercise 09 — kubeadm Upgrade](exercises/09-kubeadm-upgrade/) | [Exercise 18 — CRI-dockerd Setup](exercises/18-cri-dockerd-setup/)
-
-#### 4.1 — Manage Role-Based Access Control (RBAC)
-
-RBAC has four objects:
-
-| Object | Scope | Binds to |
-|---|---|---|
-| Role | Namespace | RoleBinding |
-| ClusterRole | Cluster-wide | ClusterRoleBinding or RoleBinding |
-| RoleBinding | Namespace | Role or ClusterRole |
-| ClusterRoleBinding | Cluster-wide | ClusterRole |
-
-```bash
-# Create Role (namespace-scoped permissions)
-k create role pod-reader \
-  --verb=get,list,watch \
-  --resource=pods \
-  -n dev
-
-# Create RoleBinding
-k create rolebinding read-pods \
-  --role=pod-reader \
-  --serviceaccount=dev:my-sa \
-  -n dev
-
-# Create ClusterRole (cluster-wide permissions)
-k create clusterrole node-reader \
-  --verb=get,list \
-  --resource=nodes
-
-# Create ClusterRoleBinding
-k create clusterrolebinding read-nodes \
-  --clusterrole=node-reader \
-  --serviceaccount=dev:my-sa
-
-# Test permissions
-k auth can-i list pods -n dev --as=system:serviceaccount:dev:my-sa
-k auth can-i list nodes --as=system:serviceaccount:dev:my-sa
-```
-
-Tricky bit: a ClusterRole bound with a RoleBinding only grants access in that namespace. A ClusterRole bound with a ClusterRoleBinding grants access cluster-wide. Same ClusterRole, different scope depending on the binding type.
-
-#### 4.2 — Use Kubeadm to Install a Basic Cluster
-
-The kubeadm workflow:
-
-```bash
-# On control plane node:
-sudo kubeadm init --pod-network-cidr=10.244.0.0/16
-
-# Set up kubeconfig
-mkdir -p $HOME/.kube
-sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
-# Install CNI (e.g., Calico)
-k apply -f https://docs.projectcalico.org/manifests/calico.yaml
-
-# On worker nodes:
-sudo kubeadm join <control-plane-ip>:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>
-```
-
-If you lost the join command:
-```bash
-kubeadm token create --print-join-command
-```
-
-#### 4.3 — Manage a Highly Available Kubernetes Cluster
-
-You won't set up HA from scratch on the exam, but they want you to understand the two topologies:
-
-- **Stacked etcd**: etcd on the same nodes as the control plane. This is what everyone uses. Simpler, good enough for most setups.
-- **External etcd**: etcd on dedicated nodes. I've never set this up. I doubt you will either. Just know it exists and that it's "more resilient" because etcd failures don't take down the control plane node.
-- Multiple control plane nodes behind a load balancer — the LB endpoint goes in `kubeadm init --control-plane-endpoint=<lb>:6443`
-
-I spent maybe 10 minutes on this topic. Read it, understood the difference, moved on. It wasn't worth more time than that.
-
-#### 4.4 — Provision Underlying Infrastructure to Deploy a Kubernetes Cluster
-
-kubeadm handles most of this. You won't provision VMs on the exam, but you might need to fix a node that was set up wrong. The things that break:
-- containerd not installed or not running — `systemctl status containerd`
-- Swap still enabled — `swapoff -a` (I always forget this on fresh VMs)
-- Missing kernel modules: `br_netfilter` and `overlay`. Load them with `modprobe`.
-- sysctl params — `net.bridge.bridge-nf-call-iptables = 1`. I can never remember the exact param name, I just grep the docs page.
-
-#### 4.5 — Perform a Version Upgrade on a Kubernetes Cluster Using Kubeadm
-
-This is a classic CKA question. The sequence matters:
-
-**Control plane node:**
-```bash
-# 1. Update kubeadm
-sudo apt-mark unhold kubeadm
-sudo apt-get update && sudo apt-get install -y kubeadm=1.35.0-1.1
-sudo apt-mark hold kubeadm
-
-# 2. Plan
-sudo kubeadm upgrade plan
-
-# 3. Apply
-sudo kubeadm upgrade apply v1.35.0
-
-# 4. Update kubelet + kubectl
-sudo apt-mark unhold kubelet kubectl
-sudo apt-get install -y kubelet=1.35.0-1.1 kubectl=1.35.0-1.1
-sudo apt-mark hold kubelet kubectl
-
-# 5. Restart kubelet
-sudo systemctl daemon-reload
-sudo systemctl restart kubelet
-```
-
-**Worker node:**
-```bash
-# 1. From control plane: drain the worker
-k drain worker-1 --ignore-daemonsets --delete-emptydir-data
-
-# 2. SSH to worker, update packages
-sudo apt-mark unhold kubeadm kubelet kubectl
-sudo apt-get update
-sudo apt-get install -y kubeadm=1.35.0-1.1 kubelet=1.35.0-1.1 kubectl=1.35.0-1.1
-sudo apt-mark hold kubeadm kubelet kubectl
-
-# 3. Upgrade node
-sudo kubeadm upgrade node
-
-# 4. Restart kubelet
-sudo systemctl daemon-reload
-sudo systemctl restart kubelet
-
-# 5. From control plane: uncordon
-k uncordon worker-1
-```
-
-Key difference: control plane uses `kubeadm upgrade apply`, worker uses `kubeadm upgrade node`.
-
-#### 4.6 — Implement etcd Backup and Restore
-
-This shows up on almost every CKA exam. Memorize this.
-
-**Backup:**
-```bash
-ETCDCTL_API=3 etcdctl snapshot save /tmp/etcd-backup.db \
-  --endpoints=https://127.0.0.1:2379 \
-  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
-  --cert=/etc/kubernetes/pki/etcd/server.crt \
-  --key=/etc/kubernetes/pki/etcd/server.key
-```
-
-Where to find the cert paths: `cat /etc/kubernetes/manifests/etcd.yaml` and look for `--cert-file`, `--key-file`, `--trusted-ca-file`.
-
-**Verify:**
-```bash
-ETCDCTL_API=3 etcdctl snapshot status /tmp/etcd-backup.db --write-table
-```
-
-**Restore:**
-```bash
-# 1. Restore to a new directory
-ETCDCTL_API=3 etcdctl snapshot restore /tmp/etcd-backup.db \
-  --data-dir=/var/lib/etcd-restored
-
-# 2. Update etcd manifest to use the restored directory
-sudo vi /etc/kubernetes/manifests/etcd.yaml
-# Change --data-dir=/var/lib/etcd → --data-dir=/var/lib/etcd-restored
-# Change hostPath path: /var/lib/etcd → /var/lib/etcd-restored
-
-# 3. Wait for etcd to restart (it's a static pod)
-# kubectl may be unresponsive for 30-60 seconds — that's normal
-```
-
-The three flags you need every time: `--cacert`, `--cert`, `--key`. I wrote them on the notepad in the exam environment before starting.
-
----
-
-### Domain 5 — Services & Networking (20%)
-
-20% of the score. Services, Ingress, Gateway API, NetworkPolicy, DNS. NetworkPolicy is where I lost the most points in practice exams — the AND vs OR selector behavior is unintuitive, and forgetting DNS egress is a silent killer.
-
-> See also: [Exercise 05 — NetworkPolicy](exercises/05-networkpolicy/) | Skeletons: [service.yaml](skeletons/service.yaml), [ingress.yaml](skeletons/ingress.yaml), [networkpolicy.yaml](skeletons/networkpolicy.yaml)
-
-#### 5.1 — Understand Host Networking Configuration on the Cluster Nodes
-
-Networking in Kubernetes "just works" if your CNI is installed correctly. Don't overthink the model — pods get IPs, pods can talk to each other, nodes can talk to pods. The CNI plugin (Calico, Flannel, Cilium) makes it happen. That's really all you need to know conceptually.
-
-What actually matters for the exam: knowing where to look when it doesn't work.
-
-```bash
-# Check what CNI is installed
-ls /etc/cni/net.d/
-cat /etc/cni/net.d/10-calico.conflist
-
-# Check pod CIDR
-k cluster-info dump | grep -m 1 cluster-cidr
-```
-
-#### 5.2 — Understand Connectivity Between Pods
-
-Same-node pods talk through a bridge, cross-node pods go through the CNI overlay. You don't need to know the internals — but you need to test connectivity when something breaks.
-
-```bash
-# Test pod-to-pod connectivity
-k exec pod-a -- wget -qO- --timeout=2 http://<pod-b-ip>
-
-# Check pod IPs
-k get pods -o wide
-```
-
-#### 5.3 — Understand ClusterIP, NodePort, LoadBalancer Service Types
-
-| Type | How it works | When to use |
-|---|---|---|
-| **ClusterIP** | Internal cluster IP only | Internal services (default) |
-| **NodePort** | ClusterIP + port on every node (30000-32767) | Dev/testing, direct node access |
-| **LoadBalancer** | NodePort + cloud LB | Production with cloud provider |
-| **ExternalName** | CNAME to external DNS | Pointing to external services |
-
-```bash
-# ClusterIP (default)
-k expose deployment webapp --port=80 --target-port=8080
-
-# NodePort (random port in 30000-32767)
-k expose deployment webapp --port=80 --target-port=8080 --type=NodePort
-
-# Specific NodePort — generate YAML, edit nodePort, then apply
-k expose deployment webapp --port=80 --target-port=8080 --type=NodePort $do > svc.yaml
-# edit svc.yaml → set spec.ports[0].nodePort: 30080
-k apply -f svc.yaml
-```
-
-The most important thing: `port` is what clients use to reach the service. `targetPort` is the port the container listens on. `nodePort` is the port on the node (NodePort/LoadBalancer only).
-
-#### 5.4 — Understand How to Use Ingress Controllers and Ingress Resources
-
-Ingress gives you HTTP/HTTPS routing to services based on hostname or path.
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: my-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: myapp.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: my-service
-            port:
-              number: 80
-```
-
-Requirements:
-- An Ingress Controller must be installed (e.g., nginx-ingress). The Ingress resource alone does nothing.
-- `ingressClassName` is required in v1.35 — the old annotation `kubernetes.io/ingress.class` still works but is deprecated.
-
-#### 5.5 — Know How to Use and Configure CoreDNS
-
-CoreDNS is the cluster DNS server (replaced kube-dns a long time ago). It runs as a Deployment in `kube-system`.
-
-```bash
-# Check CoreDNS pods
-k get pods -n kube-system -l k8s-app=kube-dns
-
-# Check CoreDNS config
-k get configmap coredns -n kube-system -o yaml
-
-# Test DNS resolution
-k run test-dns --image=busybox:1.36 --rm -it -- nslookup kubernetes.default.svc.cluster.local
-```
-
-DNS naming:
-- Service: `<service>.<namespace>.svc.cluster.local`
-- Pod: `<pod-ip-dashed>.<namespace>.pod.cluster.local`
-
-If DNS doesn't work:
-1. Is CoreDNS running? `k get pods -n kube-system -l k8s-app=kube-dns`
-2. Does kube-dns service have endpoints? `k get endpoints kube-dns -n kube-system`
-3. Is the Corefile correct? `k get cm coredns -n kube-system -o yaml`
-4. Can the pod reach the DNS service? `k exec <pod> -- cat /etc/resolv.conf`
-
-#### 5.6 — Choose an Appropriate Container Network Interface Plugin
-
-The CKA won't ask you to write a CNI plugin. Just use Calico. It supports NetworkPolicy, it's the most common, and it's what most training platforms use. The exam doesn't care which CNI is installed.
-
-Other CNIs exist — Flannel is simpler but doesn't support NetworkPolicy (dealbreaker for the exam), Cilium is the fancy eBPF one everyone's talking about, Weave still works. But if a question says "install a CNI plugin," just apply the Calico manifest and move on.
-
-Install is one `kubectl apply -f <url>`. The CNI must be installed before worker nodes join — pods stay Pending without it.
-
-#### 5.7 — Understand NetworkPolicy
-
-NetworkPolicy controls pod-to-pod traffic. Once you apply any NetworkPolicy to a pod, all traffic not explicitly allowed is denied for that pod.
+### 1.1 Network Policy — cú pháp chi tiết
+NetworkPolicy chọn pod bằng `podSelector`, sau đó whitelist nguồn/đích qua `ingress`/`egress`. **Mặc định K8s cho phép mọi traffic** — NetworkPolicy chỉ có tác dụng khi có CNI hỗ trợ (Calico, Cilium, Weave...; **Flannel không hỗ trợ**).
 
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: api-policy
-  namespace: production
+  name: deny-all
+  namespace: myns
+spec:
+  podSelector: {}          # {} = áp dụng cho MỌI pod trong namespace
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: myns
 spec:
   podSelector:
-    matchLabels:
-      app: api
-  policyTypes:
-  - Ingress
-  - Egress
+    matchLabels: {app: backend}     # policy áp lên pod có label này
+  policyTypes: [Ingress, Egress]
   ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          app: frontend
-    ports:
-    - protocol: TCP
-      port: 8080
+    - from:
+        - podSelector: {matchLabels: {app: frontend}}       # pod cùng namespace
+        - namespaceSelector: {matchLabels: {env: prod}}      # pod ở namespace khác có label env=prod
+        - ipBlock:
+            cidr: 10.0.0.0/24
+            except: [10.0.0.5/32]
+      ports:
+        - protocol: TCP
+          port: 8080
   egress:
-  - to:
-    - podSelector:
-        matchLabels:
-          app: database
-    ports:
-    - protocol: TCP
-      port: 5432
-  # Always allow DNS
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
+    - to:
+        - podSelector: {matchLabels: {app: database}}
+      ports: [{protocol: TCP, port: 5432}]
+    # LƯU Ý: nếu có egress rule, phải mở thêm DNS (port 53 UDP/TCP tới kube-system)
+    # nếu không app sẽ không resolve được service name
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
 ```
 
-Critical gotcha on the exam: if you add an Egress policy, you must also allow DNS (UDP 53). Otherwise the pod can't resolve any service names and everything looks broken even though the policy is "correct."
-
-Another gotcha: `from` with multiple selectors in one rule = AND. Multiple rules = OR.
-
+**Điểm hay bị bẫy trong đề:**
+- `from` với nhiều item trong **cùng 1 list** = OR (khớp 1 trong các điều kiện). Nếu `podSelector` và `namespaceSelector` nằm **cùng 1 object** (không phải 2 item riêng) thì là AND (pod đó phải match cả 2 điều kiện, tức là "pod có label X, nằm trong namespace có label Y").
 ```yaml
-# AND — must match BOTH namespace AND pod label
-ingress:
-- from:
-  - namespaceSelector:
-      matchLabels:
-        env: prod
-    podSelector:
-      matchLabels:
-        app: frontend
+  - from:
+      - podSelector: {matchLabels: {app: frontend}}
+        namespaceSelector: {matchLabels: {env: prod}}   # AND: cùng 1 gạch đầu dòng
+```
+- Không khai báo `policyTypes: [Egress]` mà có `egress:` thì rule egress **không có tác dụng** — phải khai rõ.
+- `podSelector: {}` trong `spec` (không phải trong `from`) = tất cả pod; nhưng nếu để trống hẳn phần `ingress:`/`egress:` (không có key) = deny toàn bộ chiều đó.
 
-# OR — matches namespace OR pod label
-ingress:
-- from:
-  - namespaceSelector:
-      matchLabels:
-        env: prod
-- from:
-  - podSelector:
-      matchLabels:
-        app: frontend
+```bash
+kubectl apply -f netpol.yaml
+kubectl describe networkpolicy deny-all -n myns
+kubectl get netpol -n myns -o yaml
+# Test policy hoạt động thật — luôn làm bước này để chắc chắn ăn điểm:
+kubectl exec -n myns frontend-pod -- curl -m 3 backend-svc:8080
+kubectl exec -n myns other-pod -- curl -m 3 backend-svc:8080   # phải timeout/fail
 ```
 
-This difference tripped me up during practice. Read the indentation carefully.
+**🔗 Tra cứu khi thi:**
+- ✅ [Network Policies — có YAML mẫu default-deny, ipBlock, namespaceSelector](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+- ✅ [Declare Network Policy (ví dụ test bằng wget/curl)](https://kubernetes.io/docs/tasks/administer-cluster/declare-network-policy/)
 
-#### 5.8 — Gateway API (v1.35)
+### 1.2 CIS Benchmark cho cluster (mới so với CKA)
+> **Là gì:** CIS (Center for Internet Security) Benchmark là 1 bộ checklist bảo mật chuẩn, viết sẵn cho từng loại hệ thống (Kubernetes, Linux, Docker...). `kube-bench` là tool tự động chạy checklist "CIS Kubernetes Benchmark" và báo PASS/FAIL/WARN cho từng mục — không phải công cụ riêng của K8s, chỉ là script đối chiếu config hiện tại với best-practice đã biết trước (VD "anonymous-auth phải là false", "quyền file cert phải là 600"...).
+```bash
+kube-bench run --targets master,node,etcd
+kube-bench run --targets master --check 1.2.1
+kube-bench run --targets node --check 4.2.1
+# đọc kỹ output [FAIL], remediation ghi sẵn lệnh cần sửa (thường là sửa flag trong static pod manifest)
+```
 
-Gateway API is the successor to Ingress. It's GA in v1.35 and may appear on the CKA.
+**🔗 Tra cứu khi thi:**
+- ✅ [kube-apiserver flags (tra flag khi sửa theo remediation)](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/)
+- ✅ [kubelet flags](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/)
+- ✅ [KubeletConfiguration (/var/lib/kubelet/config.yaml)](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/)
+- 📖 [kube-bench README (lệnh run, --targets, --check)](https://github.com/aquasecurity/kube-bench)
 
+### 1.3 Ingress với TLS
+```bash
+kubectl create secret tls my-tls --cert=tls.crt --key=tls.key -n myns
+```
 ```yaml
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: my-gateway
 spec:
-  gatewayClassName: istio
-  listeners:
-  - name: http
-    protocol: HTTP
-    port: 80
-    allowedRoutes:
-      namespaces:
-        from: Same
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: my-route
-spec:
-  parentRefs:
-  - name: my-gateway
-  hostnames:
-  - "myapp.example.com"
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /api
-    backendRefs:
-    - name: api-service
-      port: 80
+  tls:
+    - hosts: [myapp.example.com]
+      secretName: my-tls
 ```
+- Không expose Dashboard, etcd, kubelet API ra ngoài internet — kiểm tra Service type, tránh `NodePort`/`LoadBalancer` cho các resource nhạy cảm.
+- Kiểm tra port đang listen: `netstat -tulpn` hoặc `ss -tulpn`, đối chiếu với danh sách port K8s cần (6443 apiserver, 2379-2380 etcd, 10250 kubelet, 10257/10259 controller-manager/scheduler).
 
-Key differences from Ingress:
-- Gateway = infrastructure resource (managed by platform team)
-- HTTPRoute = application routing (managed by app team)
-- More features: header matching, traffic splitting, request mirroring
-- Supports TCP, UDP, gRPC — not just HTTP
+**🔗 Tra cứu khi thi:**
+- ✅ [Ingress — mục TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls)
+- ✅ [Secret kiểu kubernetes.io/tls](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets)
+- ✅ [kubectl create secret tls](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_secret_tls/)
 
----
-
-## CKA Domain Weight Distribution
-
-```mermaid
-pie title CKA Exam Domain Weights
-    "Troubleshooting (30%)" : 30
-    "Cluster Architecture (25%)" : 25
-    "Services & Networking (20%)" : 20
-    "Workloads & Scheduling (15%)" : 15
-    "Storage (10%)" : 10
-```
-
-Where to focus: Troubleshooting + Cluster Architecture = 55% of the exam. If you nail these two, you only need a few more points to pass.
-
----
-
-## Exam Day Strategy — Time Allocation
-
-I used a two-pass approach in practice and it changed everything. Before this, I'd get stuck on a hard question for 12 minutes and run out of time for easy ones worth the same points.
-
-**Pass 1 (first 80 minutes):** Do all questions in order. If a question looks like it'll take more than 8 minutes, flag it and move on. Don't get emotionally invested in any single question.
-
-**Pass 2 (last 40 minutes):** Go back to flagged questions. You now know exactly how much time you have. The pressure feels different when you've already banked easy points.
-
-Time estimates by question type:
-
-| Question Type | Typical Time | Notes |
-|---|---|---|
-| Create a pod/deployment | 2-3 min | Use `$do` to generate YAML |
-| Create RBAC resources | 3-5 min | Know the imperative commands |
-| NetworkPolicy | 5-8 min | Always allow DNS egress |
-| etcd backup/restore | 8-10 min | Know the cert paths |
-| kubeadm upgrade | 8-10 min | Follow the sequence exactly |
-| Troubleshoot broken node | 5-8 min | Check kubelet first |
-| Troubleshoot networking | 5-8 min | Check endpoints, selectors |
-| PV/PVC/StorageClass | 4-6 min | Match accessModes and storageClassName |
-| DaemonSet | 3-4 min | Copy from docs fast |
-| Ingress/Gateway | 4-6 min | Know ingressClassName |
-| Static pod | 3-4 min | Write manifest directly to /etc/kubernetes/manifests/ |
-| Node drain/cordon | 2-3 min | --ignore-daemonsets --delete-emptydir-data |
-
-Total available: 120 minutes. Budget ~100 minutes for questions, 20 minutes buffer for context switching, copy/paste fumbling, and double-checking.
-
-[Back to top](#table-of-contents)
-
----
-
-## Mistakes That Will Fail You on the CKA
-
-Every single one of these cost me points during practice exams. I'm not listing hypothetical risks — these are things I actually did wrong and had to learn from.
-
-### 1. Forgetting to switch context
-
-Every question says "use context k8s-xxx." I missed this twice during one practice exam — answered two questions perfectly on the wrong cluster. Zero points for both. Now I read the context line first, switch, then read the actual question.
-
-```bash
-# ALWAYS do this first
-k config use-context <context-name>
-```
-
-### 2. Wrong namespace
-
-I created a perfect Deployment in `default` when the question said `production`. The YAML was right, the containers were right, everything worked — but the grader checks the namespace. Zero points. Now I run `kn <namespace>` as the FIRST command for every question.
-
-```bash
-# Set namespace for the question
-kn <namespace>
-# Or use -n on every command
-k get pods -n production
-```
-
-### 3. YAML indentation errors
-
-I had one tab character hidden in a YAML file. `kubectl apply` gave a cryptic parsing error and I spent 4 minutes hunting for the problem. Set up vim with `expandtab` so tabs become spaces. One wrong indent level = broken YAML = zero points.
-
-```bash
-# This should already be in your .vimrc
-set expandtab
-set tabstop=2
-set shiftwidth=2
-```
-
-### 4. etcd restore — forgetting to update hostPath
-
-This one burned me on my second practice exam. I restored etcd to `/var/lib/etcd-restored` and updated the `--data-dir` flag. Cluster came back but all my previous resources were gone. Turns out the `hostPath.path` in the volume section was still pointing to the old `/var/lib/etcd`. The etcd process and the volume mount have to agree, or you're reading from the wrong directory.
-
+### 1.4 Protect node metadata and endpoints
+Trên cloud (AWS/GCP/Azure), instance metadata service (thường là IP `169.254.169.254`) trả về credentials/token nếu pod gọi trực tiếp được ra ngoài — đây là hướng tấn công leo quyền phổ biến (SSRF → lấy cloud credentials của node).
 ```yaml
-# Must update BOTH:
-# 1. --data-dir=/var/lib/etcd-restored
-# 2. volumes[].hostPath.path: /var/lib/etcd-restored
-```
-
-### 5. Drain without --ignore-daemonsets
-
-`k drain` fails if DaemonSet pods exist and you don't pass the flag. Don't waste time reading the error — just always use:
-
-```bash
-k drain <node> --ignore-daemonsets --delete-emptydir-data
-```
-
-### 6. NetworkPolicy without DNS egress
-
-I have made this mistake more times than I want to admit. You write what looks like a perfect NetworkPolicy egress rule, test connectivity, and it fails. You rewrite the rule. Still fails. You check selectors. Still right. The pod can't resolve service names because you didn't allow UDP 53. I now write the DNS egress block FIRST before writing any other egress rules.
-
-```yaml
-# Always include this in egress rules
-- to: []
-  ports:
-  - protocol: UDP
-    port: 53
-```
-
-### 7. Not verifying your work
-
-I finished a question early once and moved on feeling confident. Turns out the pod was in `ImagePullBackOff` because I had a typo in the image name. Would have caught it in 5 seconds if I'd checked `k get pod`. Now I verify every single resource I create before moving on.
-
-```bash
-k get pod <name> -n <ns>        # Is it Running?
-k get svc <name> -n <ns>        # Does service exist?
-k get endpoints <name> -n <ns>  # Does service have endpoints?
-```
-
-### 8. Wasting time on hard questions first
-
-A 3-point question and a 7-point question get the same time if you're stuck. Do the easy ones first.
-
-### 9. Forgetting the ServiceAccount in RBAC
-
-The question says "create a ServiceAccount and give it access." I jumped straight to creating the Role and RoleBinding, then ran `k auth can-i` and it returned "no" for everything. Spent 6 minutes thinking my Role was wrong before realizing the ServiceAccount didn't exist. The RoleBinding referenced a SA that wasn't there. Create the SA first.
-
-```bash
-# Create SA first
-k create sa my-sa -n my-ns
-
-# Then bind it
-k create rolebinding my-binding \
-  --role=my-role \
-  --serviceaccount=my-ns:my-sa \
-  -n my-ns
-```
-
----
-
-## Vim Keys I Actually Used on Exam Day
-
-Not a vim guide, just the handful I kept hitting. If you already know vim, skip this.
-
-Vim has two modes that matter here: **insert mode** (where you type text like a normal editor) and **normal mode** (where keys are commands). You start in normal mode. Press `i` to enter insert mode, press `Esc` to get back to normal mode. Almost every shortcut below is a normal mode command, so hit `Esc` first if you are not sure where you are.
-
-**Opening and saving**
-
-- `vim <file>` to open the file. You start in normal mode.
-- `i` (normal mode) to enter insert mode and start typing.
-- `Esc` to leave insert mode and go back to normal mode.
-- `:wq` (normal mode) to save and quit. `:q!` to bail without saving.
-
-**Moving around (normal mode)**
-
-- `A` jumps to the end of the current line and drops you into insert mode. Handy for adding to an existing line without arrow-keying across.
-- `$` moves the cursor to the end of the line without entering insert mode.
-- `0` moves to the start of the line.
-- `gg` jumps to the top of the file, `G` jumps to the bottom.
-- `H` top of the visible screen, `M` middle, `L` bottom.
-- `/word` then `Enter` to search, `n` for the next match.
-
-**Editing (normal mode)**
-
-- `<number>dd` deletes that many lines. `5dd` wipes 5 lines at once. I used this constantly to clean up the junk that `kubectl ... --dry-run=client -o yaml` adds (status blocks, creationTimestamp, empty resources).
-- `dd` on its own deletes the current line.
-- `u` to undo.
-
-That is all I needed. Anything fancier I would look up, but on exam day I never had to.
-
-[Back to top](#table-of-contents)
-
-
----
-
-## Troubleshooting Decision Flowchart
-
-Use this when something is broken and you don't know where to start.
-
-```mermaid
-flowchart TD
-    START[Something is broken] --> NODES{Are all nodes Ready?}
-    
-    NODES -->|No| NODE_DEBUG[Node is NotReady]
-    NODE_DEBUG --> KUBELET{Is kubelet running?}
-    KUBELET -->|No| KUBELET_FIX[systemctl start kubelet<br/>Check journalctl -u kubelet]
-    KUBELET -->|Yes| CERTS{Are certs expired?}
-    CERTS -->|Yes| CERT_FIX[kubeadm certs renew all]
-    CERTS -->|No| NET{Node networking OK?}
-    NET -->|No| NET_FIX[Check CNI plugin<br/>Check kube-proxy]
-    
-    NODES -->|Yes| PODS{Is the pod running?}
-    
-    PODS -->|Pending| PENDING[Check describe pod events]
-    PENDING --> PEND_RES{Resource issue?}
-    PEND_RES -->|Yes| RES_FIX[Scale down or add nodes]
-    PEND_RES -->|No| PEND_SCHED{Scheduling issue?}
-    PEND_SCHED -->|Taint| TAINT_FIX[Add toleration or remove taint]
-    PEND_SCHED -->|Selector| SEL_FIX[Fix nodeSelector or affinity]
-    PEND_SCHED -->|PVC| PVC_FIX[Fix PVC — check storageClass, accessMode]
-    
-    PODS -->|CrashLoop| CRASH[Check logs --previous]
-    CRASH --> CRASH_CMD{Wrong command?}
-    CRASH_CMD -->|Yes| CMD_FIX[Fix command/args]
-    CRASH_CMD -->|No| CRASH_CFG{Missing config?}
-    CRASH_CFG -->|Yes| CFG_FIX[Fix ConfigMap/Secret/env]
-    CRASH_CFG -->|No| APP_FIX[Application bug — check logs]
-    
-    PODS -->|ImagePull| IMAGE[Check image name/tag]
-    IMAGE --> IMG_SECRET{Private registry?}
-    IMG_SECRET -->|Yes| SECRET_FIX[Add imagePullSecrets]
-    IMG_SECRET -->|No| IMG_FIX[Fix image name or check network]
-    
-    PODS -->|Running| SVC{Can you reach the service?}
-    SVC -->|No| EP{Service has endpoints?}
-    EP -->|No| LABEL_FIX[Fix selector — labels don't match]
-    EP -->|Yes| PORT{targetPort matches container?}
-    PORT -->|No| PORT_FIX[Fix targetPort]
-    PORT -->|Yes| DNS{DNS resolving?}
-    DNS -->|No| DNS_FIX[Check CoreDNS pods + configmap]
-    DNS -->|Yes| NETPOL{NetworkPolicy blocking?}
-    NETPOL -->|Yes| NP_FIX[Fix NetworkPolicy rules]
-    
-    PODS -->|Running| ETCD{etcd healthy?}
-    ETCD -->|No| ETCD_FIX[Check etcd pod<br/>Restore from backup if needed]
-```
-
----
-
-## Practice Scenarios with Full Solutions
-
-These are longer, multi-step scenarios that mimic real exam questions.
-
-### Scenario 1: etcd Backup and Restore
-
-**Task:** Back up etcd to `/opt/etcd-backup.db`, then restore it to verify the backup works.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# Find cert paths
-grep -E "cert-file|key-file|trusted-ca-file" /etc/kubernetes/manifests/etcd.yaml
-
-# Backup
-ETCDCTL_API=3 etcdctl snapshot save /opt/etcd-backup.db \
-  --endpoints=https://127.0.0.1:2379 \
-  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
-  --cert=/etc/kubernetes/pki/etcd/server.crt \
-  --key=/etc/kubernetes/pki/etcd/server.key
-
-# Verify
-ETCDCTL_API=3 etcdctl snapshot status /opt/etcd-backup.db --write-table
-
-# Restore
-ETCDCTL_API=3 etcdctl snapshot restore /opt/etcd-backup.db \
-  --data-dir=/var/lib/etcd-restored
-
-# Update etcd manifest
-sudo sed -i 's|/var/lib/etcd|/var/lib/etcd-restored|g' /etc/kubernetes/manifests/etcd.yaml
-
-# Wait for etcd to restart
-sleep 30
-k get nodes
-```
-
-</details>
-
-### Scenario 2: RBAC — ServiceAccount with Limited Access
-
-**Task:** In namespace `dev`, create a ServiceAccount `deploy-bot` that can only create and list Deployments. Verify it cannot delete pods.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-k create ns dev
-k create sa deploy-bot -n dev
-k create role deploy-manager -n dev \
-  --verb=create,list,get \
-  --resource=deployments
-k create rolebinding deploy-bot-binding -n dev \
-  --role=deploy-manager \
-  --serviceaccount=dev:deploy-bot
-
-# Verify
-k auth can-i create deployments -n dev --as=system:serviceaccount:dev:deploy-bot
-# yes
-k auth can-i delete pods -n dev --as=system:serviceaccount:dev:deploy-bot
-# no
-```
-
-</details>
-
-### Scenario 3: Node Drain and Maintenance
-
-**Task:** Drain node `worker-2` for maintenance, verify pods are rescheduled, then bring it back.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# Check current state
-k get pods -o wide | grep worker-2
-
-# Drain
-k drain worker-2 --ignore-daemonsets --delete-emptydir-data
-
-# Verify node is cordoned
-k get nodes
-# worker-2 should show SchedulingDisabled
-
-# Verify pods moved
-k get pods -o wide
-# No non-DaemonSet pods on worker-2
-
-# Simulate maintenance (wait)
-# ...
-
-# Bring back
-k uncordon worker-2
-k get nodes
-# worker-2 should be Ready
-```
-
-</details>
-
-### Scenario 4: kubeadm Upgrade
-
-**Task:** Upgrade the control plane from v1.34.x to v1.35.0.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# 1. Upgrade kubeadm
-sudo apt-mark unhold kubeadm
-sudo apt-get update
-sudo apt-get install -y kubeadm=1.35.0-1.1
-sudo apt-mark hold kubeadm
-
-# 2. Plan
-sudo kubeadm upgrade plan
-
-# 3. Apply
-sudo kubeadm upgrade apply v1.35.0
-
-# 4. Upgrade kubelet + kubectl
-sudo apt-mark unhold kubelet kubectl
-sudo apt-get install -y kubelet=1.35.0-1.1 kubectl=1.35.0-1.1
-sudo apt-mark hold kubelet kubectl
-
-# 5. Restart
-sudo systemctl daemon-reload
-sudo systemctl restart kubelet
-
-# 6. Verify
-k get nodes
-```
-
-</details>
-
-### Scenario 5: Troubleshoot — Pod Can't Reach Service
-
-**Task:** Pod `client` can't reach service `backend-svc` on port 80. Find and fix the issue.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# 1. Check service exists
-k get svc backend-svc
-
-# 2. Check endpoints
-k get endpoints backend-svc
-# If empty: selector doesn't match!
-
-# 3. Check service selector
-k describe svc backend-svc | grep Selector
-# e.g., Selector: app=backend
-
-# 4. Check pod labels
-k get pods --show-labels | grep backend
-# e.g., labels are app=back (typo!)
-
-# 5. Fix pod labels
-k label pod <backend-pod> app=backend --overwrite
-
-# 6. Or fix service selector
-k edit svc backend-svc
-# Change selector to match actual pod labels
-
-# 7. Verify
-k get endpoints backend-svc
-# Should now show pod IPs
-k exec client -- wget -qO- --timeout=2 http://backend-svc
-```
-
-</details>
-
-### Scenario 6: NetworkPolicy — Isolate Database
-
-**Task:** Create a NetworkPolicy that allows only pods with label `role=api` to reach pods with label `role=db` on port 5432. Block all other ingress to the database.
-
-<details>
-<summary>Solution</summary>
-
-```yaml
+# NetworkPolicy chặn pod gọi tới metadata IP
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
-metadata:
-  name: db-isolation
+metadata: {name: deny-metadata-access, namespace: myns}
 spec:
-  podSelector:
-    matchLabels:
-      role: db
-  policyTypes:
-  - Ingress
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          role: api
-    ports:
-    - protocol: TCP
-      port: 5432
-```
-
-```bash
-k apply -f db-policy.yaml
-
-# Test — api pod should work
-k exec api-pod -- nc -zv <db-pod-ip> 5432
-
-# Test — other pod should fail
-k exec other-pod -- nc -zv <db-pod-ip> 5432
-```
-
-</details>
-
-### Scenario 7: PV/PVC — Persistent Storage
-
-**Task:** Create a PV using hostPath `/data/logs` (1Gi, ReadWriteOnce, Retain), a PVC requesting 500Mi, and mount it in a pod at `/var/log/app`.
-
-<details>
-<summary>Solution</summary>
-
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: log-pv
-spec:
-  capacity:
-    storage: 1Gi
-  accessModes:
-  - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
-  hostPath:
-    path: /data/logs
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: log-pvc
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 500Mi
-  storageClassName: manual
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: log-pod
-spec:
-  containers:
-  - name: app
-    image: busybox:1.36
-    command: ["sh", "-c", "while true; do echo $(date) >> /var/log/app/app.log; sleep 5; done"]
-    volumeMounts:
-    - name: log-vol
-      mountPath: /var/log/app
-  volumes:
-  - name: log-vol
-    persistentVolumeClaim:
-      claimName: log-pvc
-```
-
-```bash
-k apply -f storage.yaml
-k get pv log-pv
-k get pvc log-pvc
-k exec log-pod -- cat /var/log/app/app.log
-```
-
-</details>
-
-### Scenario 8: Sidecar Container — Log Streaming
-
-**Task:** Create a pod with a main container writing logs to `/var/log/app.log` and a sidecar (native v1.35 style) streaming that file to stdout.
-
-<details>
-<summary>Solution</summary>
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: sidecar-logging
-spec:
-  initContainers:
-  - name: log-streamer
-    image: busybox:1.36
-    restartPolicy: Always
-    command: ["sh", "-c", "tail -f /var/log/app.log"]
-    volumeMounts:
-    - name: log-vol
-      mountPath: /var/log
-  containers:
-  - name: app
-    image: busybox:1.36
-    command: ["sh", "-c", "while true; do echo \"$(date) app running\" >> /var/log/app.log; sleep 3; done"]
-    volumeMounts:
-    - name: log-vol
-      mountPath: /var/log
-  volumes:
-  - name: log-vol
-    emptyDir: {}
-```
-
-```bash
-k apply -f sidecar.yaml
-k logs sidecar-logging -c log-streamer
-```
-
-</details>
-
----
-
-## Practice Questions with Answers (Mock Exam)
-
-17 questions weighted to match the real exam. Switch context before each one.
-
----
-
-### Question 1 [4%] [Cluster Architecture] Easy
-
-`kubectl config use-context k8s-cluster1`
-
-Create a ServiceAccount named `monitoring-sa` in namespace `monitoring`. Create a ClusterRole named `pod-viewer` that can `get`, `list`, `watch` pods in all namespaces. Bind the ClusterRole to the ServiceAccount.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-k create ns monitoring
-k create sa monitoring-sa -n monitoring
-k create clusterrole pod-viewer --verb=get,list,watch --resource=pods
-k create clusterrolebinding pod-viewer-binding \
-  --clusterrole=pod-viewer \
-  --serviceaccount=monitoring:monitoring-sa
-
-# Verify
-k auth can-i list pods -A --as=system:serviceaccount:monitoring:monitoring-sa
-```
-
-</details>
-
----
-
-### Question 2 [5%] [Cluster Architecture] Medium
-
-`kubectl config use-context k8s-cluster1`
-
-Back up etcd to `/opt/etcd-snapshot.db`. The etcd server is running on the control plane node at `https://127.0.0.1:2379`.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# Find cert paths
-cat /etc/kubernetes/manifests/etcd.yaml | grep -E "cert-file|key-file|trusted-ca"
-
-ETCDCTL_API=3 etcdctl snapshot save /opt/etcd-snapshot.db \
-  --endpoints=https://127.0.0.1:2379 \
-  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
-  --cert=/etc/kubernetes/pki/etcd/server.crt \
-  --key=/etc/kubernetes/pki/etcd/server.key
-
-# Verify
-ETCDCTL_API=3 etcdctl snapshot status /opt/etcd-snapshot.db --write-table
-```
-
-</details>
-
----
-
-### Question 3 [3%] [Workloads & Scheduling] Easy
-
-`kubectl config use-context k8s-cluster2`
-
-Create a Deployment named `web-app` in namespace `production` with 3 replicas using image `nginx:1.27`. Expose it as a ClusterIP service named `web-svc` on port 80.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-k create ns production
-k create deployment web-app -n production --image=nginx:1.27 --replicas=3
-k expose deployment web-app -n production --port=80 --target-port=80 --name=web-svc
-k get deploy,svc -n production
-```
-
-</details>
-
----
-
-### Question 4 [5%] [Troubleshooting] Medium
-
-`kubectl config use-context k8s-cluster1`
-
-Node `worker-1` is showing `NotReady`. Investigate and fix the issue so the node becomes `Ready`.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# Check node status
-k describe node worker-1 | grep -A5 Conditions
-
-# SSH to the node
-ssh worker-1
-
-# Check kubelet
-sudo systemctl status kubelet
-# If inactive/dead:
-sudo systemctl start kubelet
-sudo systemctl enable kubelet
-
-# If it's a config issue, check logs
-sudo journalctl -u kubelet --no-pager | tail -30
-
-# Common fixes:
-# - Wrong --kubeconfig path
-# - Certificate issue → check /var/lib/kubelet/config.yaml
-# - Swap enabled → sudo swapoff -a
-
-# Verify from control plane
-k get nodes
-```
-
-</details>
-
----
-
-### Question 5 [4%] [Services & Networking] Medium
-
-`kubectl config use-context k8s-cluster2`
-
-Create a NetworkPolicy named `restrict-ingress` in namespace `production` that:
-- Applies to pods with label `app=database`
-- Allows ingress only from pods with label `app=backend` on TCP port 3306
-- Allows DNS egress (UDP 53)
-
-<details>
-<summary>Solution</summary>
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: restrict-ingress
-  namespace: production
-spec:
-  podSelector:
-    matchLabels:
-      app: database
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          app: backend
-    ports:
-    - protocol: TCP
-      port: 3306
+  podSelector: {}
+  policyTypes: [Egress]
   egress:
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [169.254.169.254/32]
 ```
-
 ```bash
-k apply -f netpol.yaml
+kubectl exec pod -- curl -m 2 http://169.254.169.254/latest/meta-data/   # phải bị chặn sau khi áp policy
+# đồng thời đảm bảo kubelet không expose read-only port (10255) và API không cho anonymous request đọc node info
 ```
 
-</details>
+**🔗 Tra cứu khi thi:**
+- ✅ [Ports and Protocols — danh sách port control-plane/worker](https://kubernetes.io/docs/reference/networking/ports-and-protocols/)
+- ✅ [NetworkPolicy — ipBlock + except (chặn 169.254.169.254)](https://kubernetes.io/docs/concepts/services-networking/network-policies/#networkpolicy-resource)
+- ✅ [Kubelet authentication/authorization (anonymous, webhook)](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/)
 
----
+### 1.5 Verify platform binaries before deploying (mới so với CKA)
+> **Vì sao quan trọng:** đây là 1 phần của "supply chain security" (xem thêm mục 5) — nếu binary `kubelet`/`kubeadm` tải về bị thay bằng bản đã chèn mã độc (do MITM lúc download, hoặc mirror bị compromise), chạy nó = chạy mã độc với quyền root trên node. Checksum (sha256) là 1 "vân tay" của file gốc do nhà phát hành công bố — so khớp checksum không đảm bảo file "tốt", chỉ đảm bảo file tải về **đúng y hệt** bản gốc, không bị chỉnh sửa giữa đường.
 
-### Question 6 [5%] [Cluster Architecture] Medium
-
-`kubectl config use-context k8s-cluster1`
-
-Upgrade the control plane node from Kubernetes v1.34.4 to v1.35.0 using kubeadm.
-
-<details>
-<summary>Solution</summary>
-
+Trước khi cài `kubeadm`/`kubelet`/`kubectl` tải về, phải verify checksum để tránh binary bị chèn mã độc.
 ```bash
-sudo apt-mark unhold kubeadm
-sudo apt-get update
-sudo apt-get install -y kubeadm=1.35.0-1.1
-sudo apt-mark hold kubeadm
+# tải binary + file checksum tương ứng
+curl -LO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubelet"
+curl -LO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubelet.sha256"
 
-sudo kubeadm upgrade plan
-sudo kubeadm upgrade apply v1.35.0
+# so sánh checksum — 2 cách
+echo "$(cat kubelet.sha256)  kubelet" | sha256sum --check
+sha256sum kubelet   # rồi so tay với nội dung file .sha256
 
-sudo apt-mark unhold kubelet kubectl
-sudo apt-get install -y kubelet=1.35.0-1.1 kubectl=1.35.0-1.1
-sudo apt-mark hold kubelet kubectl
-
-sudo systemctl daemon-reload
-sudo systemctl restart kubelet
-
-k get nodes
+# kết quả mong đợi: "kubelet: OK"
 ```
+Đề có thể cho sẵn 1 binary + checksum lệch, yêu cầu phát hiện rồi tải lại bản đúng.
 
-</details>
+**🔗 Tra cứu khi thi:**
+- ✅ [Download Kubernetes — link binary + file .sha256](https://kubernetes.io/releases/download/)
+- ✅ [Install kubectl — có ví dụ sha256sum --check](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
+- ✅ [Verify Signed Kubernetes Artifacts](https://kubernetes.io/docs/tasks/administer-cluster/verify-signed-artifacts/)
 
 ---
 
-### Question 7 [3%] [Storage] Easy
+## 2. Cluster Hardening (15%)
 
-`kubectl config use-context k8s-cluster2`
-
-Create a PersistentVolume named `data-pv` with 2Gi capacity, ReadWriteOnce access, hostPath `/data/volumes/pv1`, and storageClassName `manual`. Create a PersistentVolumeClaim named `data-pvc` in namespace `storage-test` requesting 1Gi.
-
-<details>
-<summary>Solution</summary>
-
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: data-pv
-spec:
-  capacity:
-    storage: 2Gi
-  accessModes:
-  - ReadWriteOnce
-  storageClassName: manual
-  hostPath:
-    path: /data/volumes/pv1
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: data-pvc
-  namespace: storage-test
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-  storageClassName: manual
-```
-
-```bash
-k create ns storage-test
-k apply -f storage.yaml
-k get pv data-pv
-k get pvc data-pvc -n storage-test
-```
-
-</details>
-
----
-
-### Question 8 [5%] [Troubleshooting] Hard
-
-`kubectl config use-context k8s-cluster1`
-
-Service `frontend-svc` in namespace `web` has no endpoints. Pods with label `app=frontend` are running. Find and fix the issue.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# Check service
-k describe svc frontend-svc -n web | grep Selector
-# e.g., Selector: app=front (typo)
-
-# Check pod labels
-k get pods -n web --show-labels
-# Labels show: app=frontend
-
-# Fix: edit service selector
-k edit svc frontend-svc -n web
-# Change selector from app=front to app=frontend
-# Or:
-k patch svc frontend-svc -n web -p '{"spec":{"selector":{"app":"frontend"}}}'
-
-# Verify
-k get endpoints frontend-svc -n web
-```
-
-</details>
-
----
-
-### Question 9 [4%] [Workloads & Scheduling] Medium
-
-`kubectl config use-context k8s-cluster2`
-
-Create a DaemonSet named `log-collector` in namespace `kube-system` using image `fluentd:v1.17`. It should run on all nodes including the control plane.
-
-<details>
-<summary>Solution</summary>
-
-```yaml
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: log-collector
-  namespace: kube-system
-spec:
-  selector:
-    matchLabels:
-      app: log-collector
-  template:
-    metadata:
-      labels:
-        app: log-collector
-    spec:
-      tolerations:
-      - key: node-role.kubernetes.io/control-plane
-        operator: Exists
-        effect: NoSchedule
-      containers:
-      - name: fluentd
-        image: fluentd:v1.17
-```
-
-```bash
-k apply -f ds.yaml
-k get ds log-collector -n kube-system
-k get pods -n kube-system -l app=log-collector -o wide
-# Should run on ALL nodes
-```
-
-</details>
-
----
-
-### Question 10 [5%] [Troubleshooting] Hard
-
-`kubectl config use-context k8s-cluster1`
-
-DNS resolution is not working in the cluster. Pods cannot resolve service names. Find and fix the issue.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# 1. Check CoreDNS pods
-k get pods -n kube-system -l k8s-app=kube-dns
-# Are they running? CrashLoopBackOff?
-
-# 2. If not running, check logs
-k logs -n kube-system -l k8s-app=kube-dns
-
-# 3. Check CoreDNS ConfigMap
-k get cm coredns -n kube-system -o yaml
-# Look for syntax errors in Corefile
-
-# 4. Check kube-dns service
-k get svc kube-dns -n kube-system
-k get endpoints kube-dns -n kube-system
-
-# 5. Common fixes:
-# - Corefile syntax error → fix ConfigMap, pods restart automatically
-# - CoreDNS pods not scheduled → check tolerations
-# - kube-dns service missing → recreate it
-
-# 6. Test
-k run test-dns --image=busybox:1.36 --rm -it -- nslookup kubernetes.default.svc.cluster.local
-```
-
-</details>
-
----
-
-### Question 11 [3%] [Workloads & Scheduling] Easy
-
-`kubectl config use-context k8s-cluster2`
-
-Create a static pod named `static-nginx` on node `worker-1` using image `nginx:1.27` with port 80.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# SSH to worker-1
-ssh worker-1
-
-# Create manifest
-sudo tee /etc/kubernetes/manifests/static-nginx.yaml <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: static-nginx
-spec:
-  containers:
-  - name: nginx
-    image: nginx:1.27
-    ports:
-    - containerPort: 80
-EOF
-
-# Back on control plane
-k get pods | grep static-nginx
-```
-
-</details>
-
----
-
-### Question 12 [4%] [Cluster Architecture] Medium
-
-`kubectl config use-context k8s-cluster1`
-
-Drain node `worker-2` for maintenance. Make sure no pods are disrupted unexpectedly. After a simulated maintenance window, make the node schedulable again.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-k drain worker-2 --ignore-daemonsets --delete-emptydir-data
-
-# Verify
-k get nodes
-# worker-2: SchedulingDisabled
-k get pods -o wide | grep worker-2
-# Only DaemonSet pods
-
-# After maintenance
-k uncordon worker-2
-k get nodes
-# worker-2: Ready
-```
-
-</details>
-
----
-
-### Question 13 [5%] [Services & Networking] Medium
-
-`kubectl config use-context k8s-cluster2`
-
-Create an Ingress resource named `app-ingress` in namespace `web` that routes:
-- `app.example.com/api` to service `api-svc` on port 8080
-- `app.example.com/web` to service `web-svc` on port 80
-
-Use ingressClassName `nginx`.
-
-<details>
-<summary>Solution</summary>
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: app-ingress
-  namespace: web
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: app.example.com
-    http:
-      paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: api-svc
-            port:
-              number: 8080
-      - path: /web
-        pathType: Prefix
-        backend:
-          service:
-            name: web-svc
-            port:
-              number: 80
-```
-
-```bash
-k apply -f ingress.yaml
-k get ingress app-ingress -n web
-```
-
-</details>
-
----
-
-### Question 14 [5%] [Troubleshooting] Hard
-
-`kubectl config use-context k8s-cluster1`
-
-A pod named `failing-app` in namespace `debug` is in `CrashLoopBackOff`. Investigate and fix it.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# 1. Check events
-k describe pod failing-app -n debug
-
-# 2. Check logs (previous container)
-k logs failing-app -n debug --previous
-
-# 3. Common issues:
-# a) Wrong command → fix command/args
-# b) Missing ConfigMap/Secret → create the missing resource
-# c) Wrong env var reference → fix valueFrom
-# d) Application crash → fix the image or config
-
-# 4. Fix based on what you find, e.g.:
-k edit pod failing-app -n debug
-# Or delete and recreate with fixes:
-k get pod failing-app -n debug -o yaml > fix.yaml
-# Edit fix.yaml
-k delete pod failing-app -n debug $now
-k apply -f fix.yaml
-
-# 5. Verify
-k get pod failing-app -n debug
-# Should be Running
-```
-
-</details>
-
----
-
-### Question 15 [4%] [Storage] Medium
-
-`kubectl config use-context k8s-cluster2`
-
-Create a pod named `volume-pod` in namespace `storage-test` that mounts the existing PVC `data-pvc` at `/data`. Write the string "exam-test" to `/data/test.txt`. Verify the file exists.
-
-<details>
-<summary>Solution</summary>
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: volume-pod
-  namespace: storage-test
-spec:
-  containers:
-  - name: app
-    image: busybox:1.36
-    command: ["sh", "-c", "echo 'exam-test' > /data/test.txt && sleep 3600"]
-    volumeMounts:
-    - name: data
-      mountPath: /data
-  volumes:
-  - name: data
-    persistentVolumeClaim:
-      claimName: data-pvc
-```
-
-```bash
-k apply -f pod.yaml
-k exec volume-pod -n storage-test -- cat /data/test.txt
-# Should output: exam-test
-```
-
-</details>
-
----
-
-### Question 16 [5%] [Cluster Architecture] Hard
-
-`kubectl config use-context k8s-cluster1`
-
-Restore etcd from the snapshot at `/opt/etcd-snapshot.db`. Restore it to data directory `/var/lib/etcd-from-backup`.
-
-<details>
-<summary>Solution</summary>
-
-```bash
-# Restore
-ETCDCTL_API=3 etcdctl snapshot restore /opt/etcd-snapshot.db \
-  --data-dir=/var/lib/etcd-from-backup
-
-# Update etcd manifest
-sudo vi /etc/kubernetes/manifests/etcd.yaml
-# 1. Change --data-dir=/var/lib/etcd to --data-dir=/var/lib/etcd-from-backup
-# 2. In volumes section, change hostPath path from /var/lib/etcd to /var/lib/etcd-from-backup
-
-# Wait for etcd to restart
-# kubectl may hang for 30-60s — that's normal
-sleep 30
-k get nodes
-```
-
-</details>
-
----
-
-### Question 17 [4%] [Workloads & Scheduling] Medium
-
-`kubectl config use-context k8s-cluster2`
-
-Create a pod named `restricted-pod` in namespace `secure` that:
-- Uses image `nginx:1.27`
-- Runs as user ID 1000
-- Has a read-only root filesystem
-- Drops all capabilities
-- Does not allow privilege escalation
-
-<details>
-<summary>Solution</summary>
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: restricted-pod
-  namespace: secure
-spec:
-  securityContext:
-    runAsUser: 1000
-  containers:
-  - name: nginx
-    image: nginx:1.27
-    securityContext:
-      readOnlyRootFilesystem: true
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-        - ALL
-```
-
-```bash
-k create ns secure
-k apply -f restricted.yaml
-k get pod restricted-pod -n secure
-```
-
-</details>
-
----
-
-### Score Card
-
-Copy this table into a text file. After completing the mock, mark each question as full credit, partial, or missed. Add up your weighted score.
-
-| # | Domain | Weight | Difficulty | Result | Points |
-|---|---|---|---|---|---|
-| 1 | Cluster Architecture | 4% | Easy | ___ | /4 |
-| 2 | Cluster Architecture | 5% | Medium | ___ | /5 |
-| 3 | Workloads & Scheduling | 3% | Easy | ___ | /3 |
-| 4 | Troubleshooting | 5% | Medium | ___ | /5 |
-| 5 | Services & Networking | 4% | Medium | ___ | /4 |
-| 6 | Cluster Architecture | 5% | Medium | ___ | /5 |
-| 7 | Storage | 3% | Easy | ___ | /3 |
-| 8 | Troubleshooting | 5% | Hard | ___ | /5 |
-| 9 | Workloads & Scheduling | 4% | Medium | ___ | /4 |
-| 10 | Troubleshooting | 5% | Hard | ___ | /5 |
-| 11 | Workloads & Scheduling | 3% | Easy | ___ | /3 |
-| 12 | Cluster Architecture | 4% | Medium | ___ | /4 |
-| 13 | Services & Networking | 5% | Medium | ___ | /5 |
-| 14 | Troubleshooting | 5% | Hard | ___ | /5 |
-| 15 | Storage | 4% | Medium | ___ | /4 |
-| 16 | Cluster Architecture | 5% | Hard | ___ | /5 |
-| 17 | Workloads & Scheduling | 4% | Medium | ___ | /4 |
-| | **Total** | **73%** | | | **___/73** |
-
-**How to score:** Full credit = full weight. Partial (got the right idea but missed a flag or namespace) = half weight. Wrong or skipped = 0. Real exam uses partial scoring too, so this is realistic.
-
-**Passing threshold:** 66% of 73 = **48 points**. If you're below 48, re-study the domains where you dropped points and redo those questions in a week.
-
-**Timing target:** Set a timer for 2 hours. If you finish early, note how much time you had left — that buffer is your safety margin on exam day.
-
-**Domain breakdown of this mock:**
-
-| Domain | Questions | Total Weight | Your Score |
-|---|---|---|---|
-| Cluster Architecture | 1, 2, 6, 12, 16 | 23% | ___/23 |
-| Troubleshooting | 4, 8, 10, 14 | 20% | ___/20 |
-| Services & Networking | 5, 13 | 9% | ___/9 |
-| Workloads & Scheduling | 3, 9, 11, 17 | 14% | ___/14 |
-| Storage | 7, 15 | 7% | ___/7 |
-
-If any domain is below 50%, that's where your next study session should focus.
-
-[Back to top](#table-of-contents)
-
----
-
-## Study Resources for CKA 2026
-
-What I actually used, in order of usefulness:
-
-### Free
-
-| Resource | What I actually used it for |
-|---|---|
-| [Kubernetes Official Docs](https://kubernetes.io/docs/) | The only site allowed during the exam. I spent a week getting fast at searching it. Bookmark the Tasks section — that's where etcd backup and kubeadm upgrade live. |
-| [Kubernetes Tasks](https://kubernetes.io/docs/tasks/) | This saved me on the etcd question during the actual exam. I had the steps bookmarked and copied the cert paths directly. Don't skip this. |
-| [kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/) | I had this open in a tab during the exam. The jsonpath examples alone are worth bookmarking. |
-| [CKA Curriculum PDF](https://github.com/cncf/curriculum) | Checked this the night before to make sure I hadn't missed a topic. Found out I'd skipped Pod Scheduling Readiness entirely. |
-| [Killercoda CKA Scenarios](https://killercoda.com/cka) | Free browser labs. I did 2-3 of these per day during lunch. The RBAC and NetworkPolicy ones were the most useful. |
-
-### Paid
-
-| Resource | Honest review | Cost |
-|---|---|---|
-| [killer.sh](https://killer.sh) | Included with your exam purchase. Two 24-hour sessions. Significantly harder, but the real exam also has tricky questions. If you can pass killer.sh, you're likely ready. I scored 60% on killer.sh and 89% on the actual CKA. Don't waste both sessions early. Save one for the week before. | Free with exam |
-| [KodeKloud CKA Course](https://kodekloud.com) | Mumshad's course carried me through the first two weeks. The built-in labs are what make it worth it — I wouldn't have learned etcd restore without them. | ~$15-25/mo |
-| [Udemy — Mumshad CKA](https://www.udemy.com/course/certified-kubernetes-administrator-with-practice-tests/) | Same content as KodeKloud but one-time purchase. Wait for a Udemy sale ($10-15). I used KodeKloud instead, but either works. | ~$15 |
-
-### Local Practice Environments
-
-| Tool | My experience |
-|---|---|
-| [kind](https://kind.sigs.k8s.io/) | This was my daily driver. Create/destroy clusters in seconds. Multi-node clusters for testing drain/cordon. Only downside: no systemd inside containers, so you can't practice kubelet restart. |
-| [minikube](https://minikube.sigs.k8s.io/) | Single-node, easy setup. Fine for basic exercises but useless for kubeadm upgrade or node troubleshooting. |
-| [kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/) | The real deal. Set up actual VMs (I used Vagrant + VirtualBox) and install with kubeadm. Painful to set up, but this is how you actually learn the cluster architecture domain. |
-
-Advice: don't spend your first 2 weeks watching videos. Spend 30% of your time on theory and 70% hands-on in a real cluster.
-
----
-
-## CKA Study Plan (4-5 Weeks)
-
-This is roughly what I followed. I deviated a lot — Week 3 was supposed to be networking but I was still struggling with etcd restore, so I spent half that week redoing exercise 07 until I could do it without the docs. Adjust as you go. If something isn't clicking, stay on it.
-
-### Week 1 — Foundations
-
-- Set up a practice cluster (kind or minikube)
-- Configure aliases and vim ([exam-setup.sh](scripts/exam-setup.sh))
-- Cover Domain 3 (Workloads & Scheduling): Pods, Deployments, ConfigMaps, Secrets, scheduling
-- Do exercises 01-03, 06
-- Practice generating YAML with `$do` — you should never type a full manifest from scratch
-
-### Week 2 — Cluster Administration
-
-- Cover Domain 4 (Cluster Architecture): RBAC, kubeadm, etcd backup/restore
-- Set up a multi-node cluster with kubeadm (VMs or cloud)
-- Do exercises 04, 07, 08, 09, 10
-- Practice etcd backup/restore until you can do it from memory
-- Memorize RBAC imperative commands (create role, create rolebinding, auth can-i)
-
-### Week 3 — Networking + Storage + Troubleshooting
-
-- Cover Domain 5 (Services & Networking): Services, Ingress, NetworkPolicy, CoreDNS
-- Cover Domain 1 (Storage): PV, PVC, StorageClass
-- Cover Domain 2 (Troubleshooting): start breaking things and fixing them
-- Do exercises 05, 11, 12
-- Do killer.sh session 1
-- This was my hardest week. NetworkPolicy AND storage AND troubleshooting is a lot. If you need to push something to Week 4, push storage.
-
-### Week 4 — Mock Exams + Weak Areas
-
-- Do the [mock exam](#practice-questions-with-answers-mock-exam) in this repo under timed conditions (2 hours)
-- Review killer.sh results — identify weak areas
-- Redo any exercises you struggled with
-- Practice context switching discipline — every question, switch context first
-- Do killer.sh session 2 (3 days before exam)
-
-### Week 5 (Optional) — Polish
-
-- Only if you didn't feel ready after Week 4
-- Focus entirely on weak domains
-- Practice speed: can you do a full RBAC setup in under 3 minutes?
-- Review the [mistakes list](#mistakes-that-will-fail-you-on-the-cka) one more time
-- I didn't need this week, but I scheduled it as a buffer just in case
-
----
-
-## killer.sh vs the Real CKA Exam
-
-I did killer.sh twice. Here's how it compares:
-
-| | **killer.sh** | **Real CKA Exam** |
-|---|---|---|
-| **Difficulty** | Harder — deliberately over-tests | Moderate |
-| **Number of questions** | ~25 | ~17-25 |
-| **Time pressure** | Very tight — most people don't finish | Tight but doable |
-| **Question length** | Some are multi-step and long | More focused, but some still tricky |
-| **Scoring** | Shows score after 24h session | Shows score in 24h via email |
-| **Environment** | Same PSI-like terminal | PSI Secure Browser |
-| **kubectl access** | Same as real exam | Same |
-| **Docs access** | kubernetes.io | kubernetes.io |
-| **Gotchas** | Design to fail you | Fewer gotchas, but present |
-
-My scores:
-- killer.sh session 1: 62% (failed, felt terrible)
-- killer.sh session 2: 78% (passed, felt confident)
-- Real exam: 89%
-
-If you score 60%+ on killer.sh, you'll likely pass the real exam. Note: killer.sh is harder overall, but the real exam has its own tricky questions. Don't underestimate the actual exam — stay focused on every question, not just the complex ones.
-
-[Back to top](#table-of-contents)
-
----
-
-## CKA Exam Day Checklist
-
-### 1 Week Before
-
-- [ ] Schedule the exam — pick a time when you're sharpest, not Friday evening after a long week (I did Saturday 10am)
-- [ ] Verify your CNCF account name matches your government ID EXACTLY — character for character, including middle name if it's on your ID
-- [ ] Do killer.sh session 2
-- [ ] Review your weakest domain one more time — for me that was NetworkPolicy and etcd
-- [ ] Test your webcam, microphone, and internet — the PSI system check catches issues early
-
-### 1 Day Before
-
-- [ ] Clear your desk completely — nothing on it except laptop, keyboard, mouse. I had to remove a sticky note from my monitor.
-- [ ] Remove second monitors, disconnect external screens
-- [ ] Switch to wired ethernet if possible — WiFi dropped during my killer.sh practice and I lost 2 minutes
-- [ ] Run through the [first 60 seconds setup](#first-60-seconds--aliases-vim-bash) from memory one last time
-- [ ] Read the [exam day strategy](#exam-day-strategy--time-allocation) but don't cram new content — it won't stick
-- [ ] Sleep. Seriously. I went to bed early and it helped more than any last-minute studying.
-
-### 30 Minutes Before
-
-- [ ] Close every app except the PSI browser — it checks for background processes
-- [ ] Go to the bathroom. You can't pause the exam.
-- [ ] Have water ready in a clear bottle with no label (they make you peel it off if it has one)
-- [ ] Start PSI check-in 15 minutes early — the room scan and ID verification took longer than I expected
-- [ ] Show the proctor your desk, under your desk, and your walls
-
-### During the Exam
-
-- [ ] Type your aliases and vim config FIRST — before even reading question 1
-- [ ] Switch context before every question — I lost two answers to wrong context during practice
-- [ ] Read the full question before touching the terminal. I misread a question once and solved the wrong problem.
-- [ ] Flag anything that looks like it'll take >8 minutes. Come back after you've scored the easy points.
-- [ ] Verify everything: `k get`, `k describe`, check the namespace
-- [ ] If kubectl hangs after etcd restore, WAIT. It comes back in 30-60 seconds. Don't start editing the manifest again.
-
----
-
-## Study Progress Tracker
-
-Track your progress across all CKA domains.
-
-### Domain 1 — Storage (10%)
-
-- [ ] Understand PersistentVolume and PersistentVolumeClaim
-- [ ] Understand StorageClass and dynamic provisioning
-- [ ] Know access modes (RWO, ROX, RWX, RWOP)
-- [ ] Know reclaim policies (Retain, Delete)
-- [ ] CSI driver basics and troubleshooting
-- [ ] Mount PVC in a Pod
-- [ ] Complete [Exercise 12](exercises/12-storage-pv-pvc/)
-
-### Domain 2 — Troubleshooting (30%)
-
-- [ ] Read kubelet logs with journalctl
-- [ ] Check control plane pod logs
-- [ ] Debug Pending pods
-- [ ] Debug CrashLoopBackOff pods
-- [ ] Debug ImagePullBackOff
-- [ ] Troubleshoot Service endpoints
-- [ ] Troubleshoot CoreDNS
-- [ ] Troubleshoot NetworkPolicy
-- [ ] Use kubectl debug (ephemeral containers + node debug)
-- [ ] Complete [Exercise 11](exercises/11-troubleshoot-cluster/), [17](exercises/17-kubectl-debug/)
-
-### Domain 3 — Workloads & Scheduling (15%)
-
-- [ ] Create and manage Deployments
-- [ ] Rolling update and rollback
-- [ ] ConfigMaps and Secrets (env and volume)
-- [ ] Resource requests and limits
-- [ ] HPA (autoscaling/v2)
-- [ ] DaemonSet
-- [ ] Static pods
-- [ ] nodeSelector and node affinity
-- [ ] Taints and tolerations
-- [ ] Complete [Exercise 01](exercises/01-pod-basics/), [06](exercises/06-deployment-rollout/), [10](exercises/10-static-pod/), [16](exercises/16-hpa/)
-
-### Domain 4 — Cluster Architecture (25%)
-
-- [ ] RBAC: Role, ClusterRole, RoleBinding, ClusterRoleBinding
-- [ ] kubectl auth can-i for RBAC debugging
-- [ ] ServiceAccounts
-- [ ] Pod Security Standards (PSS) enforcement
-- [ ] kubeadm cluster setup
-- [ ] kubeadm cluster upgrade
-- [ ] Container runtime configuration (CRI-dockerd, containerd)
-- [ ] Understand HA topology
-- [ ] Helm install, upgrade, rollback
-- [ ] Kustomize base + overlay
-- [ ] Complete [Exercise 04](exercises/04-rbac/), [08](exercises/08-node-drain-cordon/), [09](exercises/09-kubeadm-upgrade/), [13](exercises/13-helm-install-upgrade/), [14](exercises/14-kustomize-overlays/), [18](exercises/18-cri-dockerd-setup/), [20](exercises/20-pod-security-standards/)
-
-### Domain 5 — Services & Networking (20%)
-
-- [ ] ClusterIP, NodePort, LoadBalancer services
-- [ ] Classic Ingress resources and path-based routing
-- [ ] Ingress TLS termination and IngressClass
-- [ ] Gateway API (Gateway + HTTPRoute)
-- [ ] NetworkPolicy (ingress + egress)
-- [ ] CoreDNS configuration
-- [ ] CNI plugin awareness
-- [ ] Complete [Exercise 05](exercises/05-networkpolicy/), [15](exercises/15-gateway-api/), [19](exercises/19-ingress-classic/)
-
-### Exam Readiness
-
-- [ ] Aliases and vim config memorized
-- [ ] CRI-dockerd kernel configuration and setup memorized
-- [ ] Can install and configure kubeadm cluster from memory
-- [ ] YAML skeletons written from memory (at least 10/23)
-- [ ] killer.sh session 1 completed
-- [ ] killer.sh session 2 completed
-- [ ] Mock exam completed (>66%)
-- [ ] ID verified and CNCF account name matches
-
----
-
-## Mock Exams — Final Preparation
-
-Two comprehensive practice exams matching real CKA format:
-
-- [Mock Exam 01](mock-exams/MOCK-EXAM-01.md) — 15 questions, 2 hours (answers in [MOCK-EXAM-01-SOLUTIONS.md](mock-exams/MOCK-EXAM-01-SOLUTIONS.md))
-- [Mock Exam 02](mock-exams/MOCK-EXAM-02.md) — 15 questions, 2 hours (answers in [MOCK-EXAM-02-SOLUTIONS.md](mock-exams/MOCK-EXAM-02-SOLUTIONS.md))
-
-Each exam:
-- Covers all 5 domains with realistic weight distribution
-- Requires 7-10 minutes per question (like real exam)
-- Has separate question and solution files (don't look at solutions until done)
-- Focuses on integration across domains, not single-domain skills
-
-Scoring: 10+ correct (66%) = pass. 12+ = strong. 15/15 = ready for the real exam.
-
-Study approach: Complete all 22 exercises first, then take both mock exams under timed conditions. Track weak areas and review corresponding exercises before taking the real exam.
-
----
-
-## YAML Skeletons — Write These from Memory
-
-These are in the [`skeletons/`](skeletons/) directory. During the exam, I wrote most of these from memory instead of copying from docs — it was faster.
-
-<details>
-<summary>Pod</summary>
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: my-pod
-  labels:
-    app: my-pod
-spec:
-  containers:
-  - name: main
-    image: nginx:1.27
-    ports:
-    - containerPort: 80
-    resources:
-      requests:
-        memory: "64Mi"
-        cpu: "250m"
-      limits:
-        memory: "128Mi"
-        cpu: "500m"
-```
-
-</details>
-
-<details>
-<summary>Deployment</summary>
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: my-deployment
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: my-deployment
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
-  template:
-    metadata:
-      labels:
-        app: my-deployment
-    spec:
-      containers:
-      - name: main
-        image: nginx:1.27
-        ports:
-        - containerPort: 80
-```
-
-</details>
-
-<details>
-<summary>Service (ClusterIP + NodePort)</summary>
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: my-service
-spec:
-  type: ClusterIP
-  selector:
-    app: my-deployment
-  ports:
-  - port: 80
-    targetPort: 80
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: my-nodeport
-spec:
-  type: NodePort
-  selector:
-    app: my-deployment
-  ports:
-  - port: 80
-    targetPort: 80
-    nodePort: 30080
-```
-
-</details>
-
-<details>
-<summary>NetworkPolicy</summary>
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: my-netpol
-spec:
-  podSelector:
-    matchLabels:
-      app: my-app
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          role: frontend
-    ports:
-    - protocol: TCP
-      port: 80
-  egress:
-  - to:
-    - podSelector:
-        matchLabels:
-          role: db
-    ports:
-    - protocol: TCP
-      port: 5432
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
-```
-
-</details>
-
-<details>
-<summary>PV + PVC</summary>
-
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: my-pv
-spec:
-  capacity:
-    storage: 1Gi
-  accessModes:
-  - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
-  hostPath:
-    path: /data/my-pv
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: my-pvc
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-  storageClassName: manual
-```
-
-</details>
-
-<details>
-<summary>Ingress</summary>
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: my-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: myapp.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: my-service
-            port:
-              number: 80
-```
-
-</details>
-
-<details>
-<summary>RBAC (Role + RoleBinding)</summary>
-
+### 2.1 RBAC — cú pháp Role/ClusterRole chi tiết
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
-metadata:
-  name: pod-reader
-  namespace: default
+metadata: {name: pod-reader, namespace: myns}
 rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "watch", "list"]
+  - apiGroups: [""]              # "" = core API group
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]      # subresource — khai riêng
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["my-deploy"]  # giới hạn đúng 1 object cụ thể
+    verbs: ["get", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
-metadata:
-  name: read-pods
-  namespace: default
+metadata: {name: read-pods, namespace: myns}
 subjects:
-- kind: ServiceAccount
-  name: my-sa
-  namespace: default
+  - kind: User
+    name: jane
+    apiGroup: rbac.authorization.k8s.io
+  - kind: ServiceAccount
+    name: myapp-sa
+    namespace: myns
 roleRef:
   kind: Role
   name: pod-reader
   apiGroup: rbac.authorization.k8s.io
 ```
+- `ClusterRole` + `ClusterRoleBinding` = quyền toàn cluster (mọi namespace).
+- `ClusterRole` + `RoleBinding` (trong 1 namespace) = quyền của ClusterRole đó nhưng chỉ áp dụng trong namespace đó — pattern hay dùng để tái sử dụng 1 ClusterRole cho nhiều namespace khác nhau.
+- Wildcard `"*"` dùng được cho `apiGroups`, `resources`, `verbs` nhưng **tránh dùng trong đề thi** trừ khi đề yêu cầu rõ — giám khảo chấm theo least-privilege.
 
-</details>
+```bash
+kubectl create role pod-reader --verb=get,list,watch --resource=pods -n myns
+kubectl create rolebinding read-pods --role=pod-reader --user=jane -n myns
+kubectl create clusterrole node-reader --verb=get,list --resource=nodes
+kubectl create clusterrolebinding node-read --clusterrole=node-reader --user=jane
 
-<details>
-<summary>ClusterRole + ClusterRoleBinding</summary>
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: node-reader
-rules:
-- apiGroups: [""]
-  resources: ["nodes"]
-  verbs: ["get", "watch", "list"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: read-nodes
-subjects:
-- kind: ServiceAccount
-  name: monitoring-sa
-  namespace: monitoring
-roleRef:
-  kind: ClusterRole
-  name: node-reader
-  apiGroup: rbac.authorization.k8s.io
+# Kiểm tra quyền — lệnh dùng RẤT nhiều trong bài thi
+kubectl auth can-i list pods --as=jane -n myns
+kubectl auth can-i '*' '*' --as=system:serviceaccount:myns:default
+kubectl auth can-i --list --as=jane -n myns
+kubectl describe role pod-reader -n myns
+kubectl describe rolebinding read-pods -n myns
 ```
 
-</details>
+**🔗 Tra cứu khi thi:**
+- ✅ [Using RBAC Authorization — Role/ClusterRole/Binding mẫu, aggregated roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)
+- ✅ [kubectl create role (--verb, --resource, --resource-name)](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_role/)
+- ✅ [kubectl auth can-i (--as, --list)](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_auth/kubectl_auth_can-i/)
+- ✅ [RBAC Good Practices — quyền nguy hiểm cần tránh](https://kubernetes.io/docs/concepts/security/rbac-good-practices/)
 
-<details>
-<summary>DaemonSet</summary>
-
-```yaml
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: my-daemonset
-spec:
-  selector:
-    matchLabels:
-      app: my-daemonset
-  template:
-    metadata:
-      labels:
-        app: my-daemonset
-    spec:
-      tolerations:
-      - key: node-role.kubernetes.io/control-plane
-        operator: Exists
-        effect: NoSchedule
-      containers:
-      - name: agent
-        image: fluentd:v1.17
-```
-
-</details>
-
-<details>
-<summary>StatefulSet</summary>
-
-```yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: my-statefulset
-spec:
-  serviceName: my-headless
-  replicas: 3
-  selector:
-    matchLabels:
-      app: my-statefulset
-  template:
-    metadata:
-      labels:
-        app: my-statefulset
-    spec:
-      containers:
-      - name: main
-        image: nginx:1.27
-        volumeMounts:
-        - name: data
-          mountPath: /data
-  volumeClaimTemplates:
-  - metadata:
-      name: data
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      resources:
-        requests:
-          storage: 1Gi
-```
-
-</details>
-
-<details>
-<summary>Job + CronJob</summary>
-
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: my-job
-spec:
-  completions: 3
-  parallelism: 2
-  backoffLimit: 4
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-      - name: worker
-        image: busybox:1.36
-        command: ["sh", "-c", "echo done"]
----
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: my-cronjob
-spec:
-  schedule: "*/5 * * * *"
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          restartPolicy: OnFailure
-          containers:
-          - name: cron
-            image: busybox:1.36
-            command: ["sh", "-c", "date"]
-```
-
-</details>
-
-<details>
-<summary>ConfigMap + Secret</summary>
-
+### 2.2 ServiceAccount
 ```yaml
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: my-config
-data:
-  APP_MODE: "production"
-  LOG_LEVEL: "info"
+kind: ServiceAccount
+metadata: {name: myapp-sa, namespace: myns}
+automountServiceAccountToken: false
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: my-secret
-type: Opaque
-stringData:
-  DB_USER: admin
-  DB_PASS: changeme
-```
-
-</details>
-
-<details>
-<summary>SecurityContext</summary>
-
-```yaml
 apiVersion: v1
 kind: Pod
+spec:
+  serviceAccountName: myapp-sa
+  automountServiceAccountToken: false   # có thể override ở cấp Pod, ưu tiên hơn cấp SA
+```
+```bash
+kubectl create serviceaccount myapp-sa -n myns
+kubectl get sa myapp-sa -n myns -o yaml
+kubectl patch deployment myapp -n myns -p '{"spec":{"template":{"spec":{"automountServiceAccountToken":false}}}}'
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Configure Service Accounts — automountServiceAccountToken, projected token](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/)
+- ✅ [Service Accounts (concept)](https://kubernetes.io/docs/concepts/security/service-accounts/)
+- ✅ [Managing Service Accounts (admin)](https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/)
+
+### 2.3 Hardening API server / kubelet
+```bash
+# /etc/kubernetes/manifests/kube-apiserver.yaml — sửa trực tiếp, kubelet tự apply lại (static pod)
+--anonymous-auth=false
+--authorization-mode=Node,RBAC
+--profiling=false
+--enable-admission-plugins=NodeRestriction,EventRateLimit
+--insecure-port=0                 # (bản cũ) đảm bảo không mở port không mã hoá
+--tls-cert-file=/etc/kubernetes/pki/apiserver.crt
+--tls-private-key-file=/etc/kubernetes/pki/apiserver.key
+
+# theo dõi pod tự khởi động lại sau khi sửa file:
+watch crictl ps   # hoặc: watch kubectl get pod -n kube-system
+
+# /var/lib/kubelet/config.yaml
+anonymous:
+  enabled: false
+authorization:
+  mode: Webhook
+readOnlyPort: 0
+protectKernelDefaults: true
+```
+```bash
+systemctl daemon-reload
+systemctl restart kubelet
+systemctl status kubelet
+journalctl -u kubelet -f    # kiểm tra lỗi nếu kubelet không start được sau khi sửa config
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [kube-apiserver flags (--anonymous-auth, --authorization-mode, --enable-admission-plugins…)](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/)
+- ✅ [KubeletConfiguration — authentication/authorization/readOnlyPort](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/)
+- ✅ [Kubelet authn/authz](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/)
+- ✅ [Controlling Access to the Kubernetes API](https://kubernetes.io/docs/concepts/security/controlling-access/)
+- ✅ [Securing a Cluster](https://kubernetes.io/docs/tasks/administer-cluster/securing-a-cluster/)
+
+### 2.4 Vô hiệu hoá API version / resource nguy hiểm
+```bash
+kubectl api-versions | grep policy
+kubectl get --raw /metrics | grep apiserver_requested_deprecated_apis
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [API overview — bật/tắt API group bằng --runtime-config](https://kubernetes.io/docs/reference/using-api/#enabling-or-disabling)
+- ✅ [Deprecated API Migration Guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide/)
+
+### 2.5 Upgrade Kubernetes để tránh lỗ hổng (kubeadm)
+```bash
+kubectl get nodes -o wide          # xem version hiện tại từng node
+kubeadm upgrade plan               # xem version có thể lên + cảnh báo
+
+# trên control-plane:
+apt-get update && apt-get install -y kubeadm=1.31.1-1.1
+kubeadm upgrade apply v1.31.1
+kubectl drain <node> --ignore-daemonsets
+apt-get install -y kubelet=1.31.1-1.1 kubectl=1.31.1-1.1
+systemctl daemon-reload && systemctl restart kubelet
+kubectl uncordon <node>
+
+# trên worker node: chỉ cần "kubeadm upgrade node" (không cần "apply")
+kubeadm upgrade node
+```
+Thứ tự bắt buộc: nâng `kubeadm` trước → `upgrade plan/apply` → drain node → nâng `kubelet`/`kubectl` → restart kubelet → uncordon. Làm control-plane trước, worker sau, từng node một.
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Upgrading kubeadm clusters — copy lệnh từng bước](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/)
+- ✅ [Upgrading Linux worker nodes](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/upgrading-linux-nodes/)
+- ✅ [Changing the Kubernetes package repository (pkgs.k8s.io)](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/change-package-repository/)
+- ✅ [Safely Drain a Node](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/)
+
+---
+
+## 3. System Hardening (10%)
+
+### 3.1 AppArmor — cách viết profile (mới so với CKA)
+> **Là gì / vì sao cần:** permission Unix thường (rwx theo owner/group/other) không đủ chi tiết — 1 process chạy với quyền của user nào đó thì tự động có mọi quyền của user đó trên mọi file. AppArmor là 1 Linux Security Module (LSM), cho phép gắn thêm 1 lớp rule **theo từng chương trình cụ thể** (không phải theo user), kiểu "process X chỉ được đọc file A, dù user chạy nó có quyền đọc cả ổ đĩa". Đây gọi là Mandatory Access Control (MAC) — khác permission Unix (Discretionary Access Control). Trong K8s, AppArmor giới hạn 1 container dù bên trong container có bị chiếm quyền root thì cũng không escape ra ngoài phạm vi file/network đã whitelist.
+
+Chạy trên **node**, không phải trên control plane API. Profile là file text đặt tại `/etc/apparmor.d/`.
+
+```
+#include <tunables/global>
+
+profile k8s-deny-write flags=(attach_disconnected) {
+  #include <abstractions/base>
+
+  file,                      # cho phép mọi thao tác file mặc định (base rule)
+  deny /tmp/** w,             # CHẶN ghi vào /tmp và mọi thứ bên trong
+  deny /etc/** w,
+  network inet tcp,           # cho phép mở socket TCP
+  capability net_bind_service,
+}
+```
+Cú pháp cốt lõi cần nhớ: mỗi dòng kết thúc bằng dấu `,`; `deny` đứng trước để chặn; quyền file gồm `r` (read) `w` (write) `x`/`ux`/`Px` (execute); `**` = đệ quy mọi file con, `*` = 1 cấp.
+
+```bash
+apparmor_parser -q /etc/apparmor.d/k8s-deny-write   # load profile trên node
+aa-status                                            # xem danh sách profile đã load + enforce/complain
+```
+Gắn vào pod bằng annotation (chuẩn cũ, vẫn ra trong đề) hoặc field `securityContext.appArmorProfile` (K8s 1.30+):
+```yaml
 metadata:
-  name: secure-pod
+  annotations:
+    container.apparmor.security.beta.kubernetes.io/mycontainer: localhost/k8s-deny-write
+# hoặc bản mới:
+spec:
+  containers:
+    - name: mycontainer
+      securityContext:
+        appArmorProfile:
+          type: Localhost
+          localhostProfile: k8s-deny-write
+```
+Verify: `kubectl exec pod -- touch /tmp/x` phải báo `Permission denied`.
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Restrict a Container's Access to Resources with AppArmor — field appArmorProfile + annotation cũ](https://kubernetes.io/docs/tutorials/security/apparmor/)
+- ✅ [AppArmor Documentation (cú pháp profile, apparmor_parser)](https://gitlab.com/apparmor/apparmor/-/wikis/Documentation)
+
+### 3.2 Seccomp — cách viết profile JSON (mới so với CKA)
+> **Là gì / vì sao cần:** mọi process muốn "nói chuyện" với kernel (đọc/ghi file, mở socket, tạo process con...) đều phải gọi syscall. Linux có khoảng 300-350 syscall, nhưng 1 app web thông thường chỉ dùng vài chục cái. Seccomp là bộ lọc của kernel chặn bớt syscall không cần thiết — nếu attacker khai thác được lỗ hổng và chèn code chạy trong container, code đó cũng bị giới hạn chỉ gọi được các syscall đã whitelist (VD không gọi được `ptrace`, `mount`, `reboot`...). Khác AppArmor (giới hạn theo *file/network path*), seccomp giới hạn theo *syscall* — 2 lớp bổ sung nhau, không thay thế nhau.
+
+Profile JSON đặt tại `/var/lib/kubelet/seccomp/profiles/<tên>.json` trên node.
+
+```json
+{
+  "defaultAction": "SCMP_ACT_ERRNO",
+  "architectures": ["SCMP_ARCH_X86_64"],
+  "syscalls": [
+    {
+      "names": ["read", "write", "exit", "exit_group", "open", "close", "fstat", "mmap", "brk"],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "names": ["chmod", "chown", "setuid"],
+      "action": "SCMP_ACT_ERRNO"
+    }
+  ]
+}
+```
+`defaultAction: SCMP_ACT_ERRNO` = whitelist mode (mặc định chặn, chỉ cho phép syscalls liệt kê). Có thể đảo lại `SCMP_ACT_ALLOW` mặc định + `SCMP_ACT_ERRNO` cho từng syscall cụ thể để làm blacklist.
+
+```yaml
 spec:
   securityContext:
-    runAsUser: 1000
-    runAsGroup: 3000
-    fsGroup: 2000
+    seccompProfile:
+      type: RuntimeDefault    # profile mặc định do container runtime cung cấp
   containers:
-  - name: main
-    image: busybox:1.36
-    command: ["sleep", "3600"]
-    securityContext:
-      allowPrivilegeEscalation: false
-      readOnlyRootFilesystem: true
-      capabilities:
-        drop:
-        - ALL
+    - name: app
+      securityContext:
+        seccompProfile:
+          type: Localhost
+          localhostProfile: profiles/my-seccomp.json   # đường dẫn tương đối trong thư mục profiles ở trên
+```
+```bash
+# strace để xem container thực sự gọi syscall nào trước khi viết whitelist (nếu đề cho phép)
+kubectl exec pod -- cat /proc/1/status | grep Seccomp   # 2 = filtered (đang áp seccomp)
 ```
 
-</details>
+**🔗 Tra cứu khi thi:**
+- ✅ [Restrict a Container's Syscalls with seccomp — có file profile JSON mẫu (audit/violation/fine-grained)](https://kubernetes.io/docs/tutorials/security/seccomp/)
+- ✅ [Seccomp reference — field seccompProfile, đường dẫn /var/lib/kubelet/seccomp](https://kubernetes.io/docs/reference/node/seccomp/)
 
-<details>
-<summary>ResourceQuota + LimitRange</summary>
+### 3.3 Capabilities / SecurityContext (mới so với CKA)
+> **Là gì / vì sao cần:** container runtime mặc định cấp cho container 1 tập ~14 capabilities (không phải full root, nhưng cũng không phải "không có gì" — VD mặc định đã có `CHOWN`, `SETUID`, `NET_RAW`...). Best practice CKS là **drop hết (`ALL`) rồi chỉ add lại đúng cái app thật sự cần**, thay vì tin vào default của runtime. `runAsNonRoot`/`allowPrivilegeEscalation: false` chặn thêm 2 hướng khác: chạy bằng UID 0, và tự nâng quyền qua binary SUID bên trong image.
 
 ```yaml
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+    add: ["NET_BIND_SERVICE"]
+```
+```bash
+kubectl exec pod -- whoami
+kubectl exec pod -- id
+kubectl get pod x -o jsonpath='{.spec.containers[0].securityContext}'
+kubectl exec pod -- cat /proc/1/status | grep Cap   # đối chiếu bitmask capability nếu đề hỏi sâu
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Configure a Security Context — runAsUser, capabilities, readOnlyRootFilesystem, allowPrivilegeEscalation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/)
+- ✅ [Linux kernel security constraints for Pods and containers](https://kubernetes.io/docs/concepts/security/linux-kernel-security-constraints/)
+- ✅ [Pod Security Standards — danh sách field "restricted" yêu cầu](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
+
+### 3.4 Linux cơ bản (điểm yếu nhiều người mất điểm)
+```bash
+useradd -m -s /bin/bash user1
+passwd -l user1                       # khoá password login
+usermod -aG sudo user1
+chmod 600 /etc/shadow
+chown root:root /etc/kubernetes/pki/*.key
+systemctl status kubelet
+systemctl enable --now kubelet
+journalctl -u kubelet -f
+iptables -L -n -v
+iptables -A INPUT -p tcp --dport 4444 -j DROP
+ss -tulpn
+find / -perm -4000 -type f 2>/dev/null   # tìm SUID binaries
+find / -nouser -o -nogroup 2>/dev/null   # file mồ côi owner
+crontab -l -u root                        # kiểm tra cron job nghi ngờ
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Security Checklist](https://kubernetes.io/docs/concepts/security/security-checklist/)
+- ✅ [Hardening Guide — Authentication Mechanisms](https://kubernetes.io/docs/concepts/security/hardening-guide/authentication-mechanisms/)
+- 📖 [Linux man pages (ss, systemctl, useradd…) — khi thi dùng `man`/`--help` trên terminal](https://man7.org/linux/man-pages/)
+
+---
+
+## 4. Minimize Microservice Vulnerabilities (20%)
+
+### 4.1 Trivy — scan image
+```bash
+trivy image nginx:1.19
+trivy image --severity HIGH,CRITICAL myrepo/myimage:tag
+trivy image --exit-code 1 --severity CRITICAL myimage:tag   # dùng trong CI/admission, exit code != 0 để fail pipeline
+trivy image --ignore-unfixed myimage:tag
+trivy fs .                                                   # quét source code / Dockerfile trong thư mục
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Trivy documentation (aquasecurity.github.io/trivy redirect về đây)](https://trivy.dev/latest/docs/)
+- ✅ [Trivy — scan container image (--severity, --ignore-unfixed)](https://trivy.dev/latest/docs/target/container_image/)
+- 📖 [Trivy GitHub](https://github.com/aquasecurity/trivy)
+
+### 4.2 Pod Security Admission (thay PodSecurityPolicy) (mới so với CKA)
+> **Là gì / vì sao cần:** đây là 1 **admission controller có sẵn** trong API server (không cần cài thêm gì), hoạt động bằng cách gắn label lên **namespace**. Nó không linh hoạt bằng OPA/Gatekeeper (mục 4.3, tự viết rule) nhưng dựng sẵn 3 bộ rule chuẩn nên nhanh gọn cho các case phổ biến (chặn privileged, chặn hostNetwork, bắt buộc non-root...). PodSecurityPolicy (PSP) là cơ chế cũ đã bị xoá khỏi K8s từ bản 1.25 — CKS hiện chỉ hỏi Pod Security Admission.
+
+3 mức: `privileged` (không giới hạn) < `baseline` (chặn known privilege escalation cơ bản) < `restricted` (siết chặt nhất, bắt buộc non-root, drop ALL capabilities...).
+```bash
+kubectl label ns myns pod-security.kubernetes.io/enforce=restricted
+kubectl label ns myns pod-security.kubernetes.io/enforce=baseline --overwrite
+kubectl label ns myns pod-security.kubernetes.io/warn=restricted
+kubectl label ns myns pod-security.kubernetes.io/audit=restricted
+```
+Verify: tạo pod vi phạm (VD `privileged: true`) trong namespace `enforce=restricted` → phải bị API server từ chối ngay khi `kubectl apply`.
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Pod Security Admission — label enforce/audit/warn + version](https://kubernetes.io/docs/concepts/security/pod-security-admission/)
+- ✅ [Pod Security Standards (privileged/baseline/restricted)](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
+- ✅ [Enforce Pod Security Standards with Namespace Labels](https://kubernetes.io/docs/tasks/configure-pod-container/enforce-standards-namespace-labels/)
+- ✅ [Enforce PSS bằng cấu hình admission controller (exemptions)](https://kubernetes.io/docs/tasks/configure-pod-container/enforce-standards-admission-controller/)
+
+### 4.3 OPA / Gatekeeper — cách viết rule (Rego) (mới so với CKA)
+> **Là gì / vì sao cần:** OPA (Open Policy Agent) là 1 engine đánh giá policy tổng quát (không riêng cho K8s); Gatekeeper là bản đóng gói OPA thành admission webhook cho K8s. Khác Pod Security Admission (rule cố định sẵn), Gatekeeper cho tự viết rule bằng ngôn ngữ Rego — dùng khi cần policy đặc thù mà 3 mức baseline/restricted/privileged không cover được (VD "bắt buộc phải có label team", "chỉ được pull image từ registry nội bộ"...). Cần phân biệt: OPA/Gatekeeper chặn **lúc apply** (trước khi resource được tạo); Falco (mục 6.1) phát hiện hành vi **lúc đang chạy** — 2 lớp khác thời điểm, bổ sung nhau chứ không thay thế.
+
+Gatekeeper gồm 2 tầng: **ConstraintTemplate** (định nghĩa logic bằng Rego, giống như "class") và **Constraint** (áp dụng logic đó lên resource cụ thể, giống "instance").
+
+```yaml
+# 1. ConstraintTemplate — định nghĩa rule bằng Rego
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequiredlabels
+spec:
+  crd:
+    spec:
+      names: {kind: K8sRequiredLabels}
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            labels: {type: array, items: {type: string}}
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequiredlabels
+
+        violation[{"msg": msg}] {
+          required := input.parameters.labels
+          provided := input.review.object.metadata.labels
+          missing := required[_]
+          not provided[missing]
+          msg := sprintf("Thiếu label bắt buộc: %v", [missing])
+        }
+---
+# 2. Constraint — áp dụng ConstraintTemplate lên resource
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: require-team-label
+spec:
+  match:
+    kinds: [{apiGroups: [""], kinds: ["Pod"]}]
+    namespaces: ["myns"]        # (tuỳ chọn) giới hạn phạm vi
+  enforcementAction: deny        # deny = chặn thật; dryrun = chỉ log không chặn
+  parameters:
+    labels: ["team"]
+```
+Cấu trúc Rego cần nhớ: `package <tên>` khai ở đầu; rule `violation[{"msg": msg}] { ... }` — mỗi dòng trong block là 1 điều kiện AND với nhau, nếu **tất cả** đúng thì rule "match" và trả về vi phạm; `input.review.object` là resource đang được xét; `not <biểu thức>` phủ định điều kiện.
+
+Rule chặn image dùng tag `:latest` (mẫu hay gặp trong đề):
+```rego
+package k8sdisallowedtags
+
+violation[{"msg": msg}] {
+  container := input.review.object.spec.containers[_]
+  endswith(container.image, ":latest")
+  msg := sprintf("Image '%v' không được dùng tag latest", [container.image])
+}
+```
+```bash
+kubectl apply -f constrainttemplate.yaml
+kubectl apply -f constraint.yaml
+kubectl get constrainttemplates
+kubectl get k8srequiredlabels                 # kind lấy theo spec.crd.spec.names.kind, viết thường
+kubectl describe k8srequiredlabels require-team-label   # xem phần Status > Violations nếu enforcementAction: dryrun
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [K8s Blog — OPA Gatekeeper (có ví dụ ConstraintTemplate + Constraint, thuộc kubernetes.io/blog nên mở được)](https://kubernetes.io/blog/2019/08/06/opa-gatekeeper-policy-and-governance-for-kubernetes/)
+- ✅ [Dynamic Admission Control (ValidatingWebhook)](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/)
+- ✅ [ValidatingAdmissionPolicy (CEL) — phương án built-in thay Gatekeeper](https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/)
+- 📖 [Gatekeeper How-to](https://open-policy-agent.github.io/gatekeeper/website/docs/howto)
+- 📖 [Gatekeeper Library — rule mẫu (allowedrepos, requiredlabels…)](https://open-policy-agent.github.io/gatekeeper-library/website/)
+
+### 4.4 Pod-to-Pod encryption (Cilium, Istio mTLS) (mới so với CKA)
+> **Là gì / vì sao cần:** mặc định traffic giữa các pod đi dưới dạng plaintext trên mạng ảo của cluster — ai chiếm được 1 node hoặc bắt gói tin trên mạng đó là đọc được hết. mTLS (mutual TLS) nghĩa là **cả 2 chiều** (client lẫn server) đều xuất trình chứng chỉ để xác thực lẫn nhau, khác TLS thường (chỉ server có cert, client thì không) — dùng mTLS thì 2 service xác nhận đúng danh tính của nhau trước khi trao đổi dữ liệu đã mã hoá. Cilium mã hoá ở tầng network (WireGuard, trong suốt với app); Istio mTLS làm ở tầng sidecar proxy (Envoy) chèn vào mỗi pod trong mesh — 2 cách tiếp cận khác layer, không bắt buộc dùng cả 2.
+
+K8s không tự mã hoá traffic giữa các pod — cần CNI/service mesh hỗ trợ.
+
+**Cilium (mã hoá tầng transparent, WireGuard):**
+```bash
+cilium config view | grep encryption
+cilium config set encryption-type wireguard
+kubectl -n kube-system rollout restart ds/cilium
+cilium status | grep Encryption   # xác nhận "Encryption: Wireguard  [NodeEncryption: Disabled]"
+```
+
+**Istio (mTLS giữa các pod trong mesh):**
+```yaml
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata: {name: default, namespace: myns}
+spec:
+  mtls:
+    mode: STRICT     # bắt buộc mTLS, từ chối traffic plaintext
+```
+```bash
+kubectl apply -f peerauth.yaml
+istioctl proxy-config secret <pod> -n myns   # xem chứng chỉ được sidecar cấp
+# verify: gọi service mà không qua sidecar (curl trực tiếp) phải bị từ chối do STRICT mode
+```
+
+**🔗 Tra cứu khi thi:**
+- 📖 [Cilium — WireGuard transparent encryption](https://docs.cilium.io/en/stable/security/network/encryption-wireguard/)
+- 📖 [Cilium — IPsec transparent encryption](https://docs.cilium.io/en/stable/security/network/encryption-ipsec/)
+- 📖 [Istio — Mutual TLS Migration (PeerAuthentication STRICT)](https://istio.io/latest/docs/tasks/security/authentication/mtls-migration/)
+- 📖 [Istio — PeerAuthentication reference](https://istio.io/latest/docs/reference/config/security/peer_authentication/)
+- ✅ [Manage TLS Certificates in a Cluster](https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster/)
+
+### 4.5 Secrets
+```bash
+kubectl create secret generic db-cred --from-literal=user=admin --from-literal=pass=1234
+kubectl create secret generic tls-secret --from-file=./tls.crt --from-file=./tls.key
+kubectl get secret db-cred -o jsonpath='{.data.pass}' | base64 -d
+```
+- Mount secret dạng **volume** thay vì **env var** khi có thể (env var dễ lộ qua `kubectl describe`, log, process list; volume thì không).
+- Không commit secret ở dạng plaintext trong manifest lưu trong git.
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Secrets — các type, mount dạng volume/env, immutable](https://kubernetes.io/docs/concepts/configuration/secret/)
+- ✅ [Good practices for Kubernetes Secrets](https://kubernetes.io/docs/concepts/security/secrets-good-practices/)
+- ✅ [Distribute Credentials Securely Using Secrets](https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/)
+
+---
+
+## 5. Supply Chain Security (20%)
+
+### 5.0 Hiểu và siết supply chain (SBOM, CI/CD, artifact repository) (mới so với CKA)
+> **Là gì / vì sao cần:** "supply chain" ở đây là toàn bộ chuỗi từ lúc viết code → build image → push registry → deploy — mỗi bước đều là 1 điểm có thể bị chèn mã độc (dependency độc hại, image bị thay bằng bản giả trong registry, pipeline CI bị chiếm quyền...). SBOM (Software Bill of Materials) là bản "danh sách thành phần" của image, giống nhãn thành phần trên hộp thực phẩm — liệt kê image được build từ package/dependency nào, version bao nhiêu. Khi có 1 CVE mới công bố cho 1 thư viện cụ thể, có SBOM thì tra cứu ngay image nào đang dùng thư viện đó mà không cần scan lại từ đầu.
+
+```bash
+# sinh SBOM (Software Bill of Materials) cho image bằng syft
+syft myrepo/myimage:tag -o json > sbom.json
+syft myrepo/myimage:tag -o table
+
+# hoặc dùng trivy để vừa sinh SBOM vừa scan luôn
+trivy image --format cyclonedx --output sbom-cyclonedx.json myimage:tag
+
+# giới hạn registry được phép pull image trong cluster — dùng admission (Gatekeeper) hoặc containerd config
+```
+```yaml
+# Gatekeeper: chỉ cho phép pull từ registry nội bộ
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sAllowedRepos
+metadata: {name: repo-is-internal}
+spec:
+  match: {kinds: [{apiGroups: [""], kinds: ["Pod"]}]}
+  parameters:
+    repos: ["myregistry.internal/"]
+```
+- SBOM giúp trace được image build từ package/dependency nào — dùng để đối chiếu khi có CVE mới công bố.
+- CI/CD: đảm bảo pipeline build image có bước scan (trivy) + sign (cosign) trước khi push lên registry, registry production chỉ nhận image đã ký.
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Trivy — SBOM (--format cyclonedx/spdx-json)](https://trivy.dev/latest/docs/supply-chain/sbom/)
+- ✅ [Verify Signed Kubernetes Artifacts (SBOM, cosign)](https://kubernetes.io/docs/tasks/administer-cluster/verify-signed-artifacts/)
+- ✅ [Images — imagePullPolicy, digest, private registry](https://kubernetes.io/docs/concepts/containers/images/)
+- 📖 [bom (kubernetes-sigs) — sinh SBOM SPDX](https://github.com/kubernetes-sigs/bom)
+- 📖 [syft README](https://github.com/anchore/syft)
+- 📖 [Gatekeeper Library — K8sAllowedRepos](https://open-policy-agent.github.io/gatekeeper-library/website/validation/allowedrepos/)
+
+### 5.1 Image signing / verify (cosign) (mới so với CKA)
+> **Là gì / vì sao cần:** signing (ký số) trả lời câu hỏi "image này có đúng do team mình build ra không, có bị ai thay đổi giữa đường không". Cơ chế: giữ 1 private key (`cosign.key`), ký lên digest của image; ai có `cosign.pub` (public key) verify được chữ ký đó mà không cần biết private key. Nếu attacker chèn 1 image độc hại vào registry (kể cả cùng tên tag), verify sẽ fail vì không ký được bằng private key thật. Đây là bước cuối trong chuỗi supply chain: scan (Trivy) tìm lỗ hổng đã biết → sign (cosign) đảm bảo nguồn gốc → registry/cluster chỉ chấp nhận image đã ký.
+
+```bash
+cosign generate-key-pair
+cosign sign --key cosign.key myrepo/myimage:tag
+cosign verify --key cosign.pub myrepo/myimage:tag
+cosign verify --key cosign.pub myrepo/myimage:tag | jq .
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Verify Signed Kubernetes Artifacts (có lệnh cosign verify mẫu)](https://kubernetes.io/docs/tasks/administer-cluster/verify-signed-artifacts/)
+- 📖 [Sigstore — Signing containers with cosign](https://docs.sigstore.dev/cosign/signing/signing_with_containers/)
+
+### 5.2 Static analysis manifest / Dockerfile
+```bash
+kubesec scan pod.yaml
+kube-linter lint deployment.yaml
+conftest test deployment.yaml -p policy/
+hadolint Dockerfile
+```
+Ví dụ 1 policy Rego cho `conftest` chặn container chạy privileged:
+```rego
+package main
+
+deny[msg] {
+  input.kind == "Pod"
+  container := input.spec.containers[_]
+  container.securityContext.privileged == true
+  msg := sprintf("Container '%v' không được chạy privileged", [container.name])
+}
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Pod Security Standards — checklist field cần soi khi review manifest](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
+- 📖 [kubesec](https://kubesec.io/)
+- 📖 [conftest (Rego cho manifest/Dockerfile)](https://www.conftest.dev/)
+- 📖 [hadolint (lint Dockerfile)](https://github.com/hadolint/hadolint)
+
+### 5.3 ImagePolicyWebhook (admission controller chặn image không rõ nguồn gốc) (mới so với CKA)
+> **Là gì / vì sao cần:** đây là 1 admission controller sẵn có trong API server, nhưng thay vì tự chứa logic, nó gọi ra 1 webhook server bên ngoài để hỏi "image này có được phép chạy không" mỗi khi có pod mới được tạo. Điểm mấu chốt cần nhớ là `defaultAllow: false` — nghĩa là **fail-closed**: nếu webhook không trả lời được (down, timeout...) thì mặc định TỪ CHỐI thay vì cho qua, tránh trường hợp webhook chết làm mất luôn kiểm soát an ninh.
+
+```yaml
+# /etc/kubernetes/manifests/kube-apiserver.yaml
+spec:
+  containers:
+    - command:
+        - kube-apiserver
+        - --enable-admission-plugins=NodeRestriction,ImagePolicyWebhook
+        - --admission-control-config-file=/etc/kubernetes/admission/admission-config.yaml
+```
+```yaml
+# /etc/kubernetes/admission/admission-config.yaml
+apiVersion: apiserver.config.k8s.io/v1
+kind: AdmissionConfiguration
+plugins:
+  - name: ImagePolicyWebhook
+    configuration:
+      imagePolicy:
+        kubeConfigFile: /etc/kubernetes/admission/kubeconf-for-webhook.yaml
+        allowTTL: 50
+        denyTTL: 50
+        retryBackoff: 500
+        defaultAllow: false   # quan trọng: fail-closed, image không xác định được thì DENY
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Admission Controllers — mục ImagePolicyWebhook (có file AdmissionConfiguration + kubeconfig mẫu)](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#imagepolicywebhook)
+- ✅ [kube-apiserver Admission (v1) config API](https://kubernetes.io/docs/reference/config-api/apiserver-config.v1/)
+- ✅ [kubeconfig — format file backend webhook](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)
+
+### 5.4 Best practice build image
+```dockerfile
+# multi-stage build để giảm attack surface
+FROM golang:1.22 AS build
+WORKDIR /app
+COPY . .
+RUN go build -o app .
+
+FROM gcr.io/distroless/base
+COPY --from=build /app/app /app
+USER 1000
+ENTRYPOINT ["/app"]
+```
+- Không để secrets trong layer (dùng `--secret` của BuildKit thay vì `ARG`/`ENV`).
+- Pin version cụ thể, tránh `latest`; dùng digest (`image@sha256:...`) khi cần bất biến tuyệt đối.
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Images — tag vs digest](https://kubernetes.io/docs/concepts/containers/images/)
+- ✅ [Security Checklist — mục Images](https://kubernetes.io/docs/concepts/security/security-checklist/#images)
+- 📖 [Docker — Dockerfile best practices](https://docs.docker.com/build/building/best-practices/)
+- 📖 [Docker — Multi-stage builds](https://docs.docker.com/build/building/multi-stage/)
+
+---
+
+## 6. Monitoring, Logging & Runtime Security (20%)
+
+### 6.1 Falco — cách viết rule chi tiết (phần hay bị mất điểm nhất) (mới so với CKA)
+> **Là gì / vì sao cần:** tất cả các cơ chế ở mục 3-5 (AppArmor, seccomp, OPA, Pod Security...) đều là "phòng ngừa" — chặn hoặc giới hạn *trước khi/trong lúc* container được tạo. Falco là lớp khác hẳn: nó chạy nền trên node (đọc syscall qua kernel module hoặc eBPF), theo dõi **những gì thực sự xảy ra bên trong container lúc runtime**, và bắn cảnh báo khi thấy hành vi khớp rule (VD tự dưng có ai `exec` shell vào container production, có process đọc `/etc/shadow`, có kết nối ra IP lạ...). Nó không chặn hành vi (mặc định), chỉ log/alert — vì vậy luôn cần kết hợp với các lớp phòng ngừa ở trên, không thay thế được.
+
+**Cấu trúc 1 rule Falco:**
+```yaml
+- rule: <tên rule, duy nhất>
+  desc: <mô tả>
+  condition: <biểu thức boolean — điều kiện để trigger>
+  output: <format log khi trigger, dùng field %xxx.yyy>
+  priority: <EMERGENCY|ALERT|CRITICAL|ERROR|WARNING|NOTICE|INFO|DEBUG>
+  tags: [tag1, tag2]        # tuỳ chọn
+```
+
+**3 loại object trong file rule:**
+- `rule`: as trên — thứ thực sự trigger alert.
+- `macro`: đoạn `condition` tái sử dụng được, đặt tên rồi gọi lại trong rule khác.
+- `list`: danh sách giá trị (VD danh sách tên process) dùng trong condition.
+
+```yaml
+- macro: container
+  condition: (container.id != host)
+
+- list: shell_binaries
+  items: [bash, sh, zsh, csh, ksh]
+
+- macro: spawned_process
+  condition: evt.type = execve and evt.dir = <
+
+- rule: Shell trong container
+  desc: Phát hiện có shell được exec bên trong container
+  condition: >
+    spawned_process and container
+    and proc.name in (shell_binaries)
+  output: >
+    Shell được chạy trong container
+    (user=%user.name container_id=%container.id container_name=%container.name
+    image=%container.image.repository command=%proc.cmdline)
+  priority: WARNING
+  tags: [container, shell]
+```
+
+**Field hay dùng nhất khi viết `condition`/`output`:**
+| Nhóm | Field | Ý nghĩa |
+|---|---|---|
+| Process | `proc.name`, `proc.cmdline`, `proc.pname` | tên process, dòng lệnh, process cha |
+| Event | `evt.type`, `evt.dir` | loại syscall (execve, open, connect...), `<` = enter/exit |
+| File | `fd.name`, `fd.directory`, `fd.type` | đường dẫn file/socket đang thao tác |
+| Container | `container.id`, `container.name`, `container.image.repository` | thông tin container |
+| Network | `fd.sip`, `fd.sport`, `fd.rip`, `fd.rport` | IP/port nguồn-đích khi có network event |
+| User | `user.name`, `user.uid` | user thực thi |
+| K8s | `k8s.pod.name`, `k8s.ns.name` | (khi có k8s metadata enrich) |
+
+**Toán tử condition thường dùng:** `=`/`!=`, `in`, `contains`, `startswith`, `and`/`or`/`not`, so sánh field-với-field (`fd.name = proc.name` ví dụ minh hoạ, thực tế ít dùng).
+
+**4 rule mẫu hay ra trong đề CKS — học thuộc dạng này:**
+
+```yaml
+# 1. Phát hiện ghi file dưới thư mục nhị phân hệ thống (thường có sẵn trong falco_rules.yaml, chỉ cần biết đọc)
+- rule: Write below binary dir
+  desc: Ghi file bên dưới /bin, /usr/bin, /sbin...
+  condition: >
+    bin_dir and evt.dir = < and open_write
+    and not package_mgmt_procs
+  output: "File ghi dưới thư mục binary (file=%fd.name proc=%proc.name)"
+  priority: ERROR
+
+# 2. Phát hiện đọc file nhạy cảm (/etc/shadow, config secret...)
+- rule: Read sensitive file untrusted
+  desc: Process không nằm trong whitelist đọc /etc/shadow hoặc /etc/passwd
+  condition: >
+    open_read and sensitive_files
+    and not proc.name in (allowed_procs)
+  output: "Đọc file nhạy cảm (user=%user.name file=%fd.name proc=%proc.name)"
+  priority: WARNING
+
+# 3. Phát hiện kết nối mạng ra ngoài không mong muốn từ container
+- rule: Unexpected outbound connection
+  desc: Container mở kết nối TCP ra ngoài dải IP cho phép
+  condition: >
+    outbound and container
+    and not fd.sip in (allowed_outbound_ips)
+  output: "Kết nối outbound bất thường (container=%container.name dest=%fd.rip:%fd.rport)"
+  priority: NOTICE
+
+# 4. Phát hiện chạy công cụ quản lý package trong container (dấu hiệu cài mã độc)
+- rule: Launch Package Management Process in Container
+  desc: apt/yum/apk chạy trong container lúc runtime
+  condition: >
+    spawned_process and container
+    and proc.name in (apt, apt-get, yum, dnf, apk, dpkg)
+  output: "Package management chạy trong container (proc=%proc.name container=%container.name)"
+  priority: ERROR
+```
+
+**Nơi thêm rule + cách chạy:**
+```bash
+# thêm custom rule vào file local, KHÔNG sửa trực tiếp falco_rules.yaml gốc
+vi /etc/falco/falco_rules.local.yaml
+
+# file cấu hình chính khai đường dẫn include các rule file:
+cat /etc/falco/falco.yaml | grep rules_file
+
+falco --validate /etc/falco/falco_rules.local.yaml   # kiểm tra cú pháp trước khi apply
+falco -r /etc/falco/falco_rules.local.yaml            # chạy thử với rule file cụ thể
+journalctl -fu falco                                   # xem alert realtime (nếu chạy dạng systemd service)
+# hoặc nếu Falco chạy dạng container/pod trong cluster:
+kubectl logs -n falco -l app=falco -f
+```
+**Mẹo:** đề thường cho sẵn 1 rule gần đúng và yêu cầu sửa/hoàn thiện — đọc kỹ `condition` hiện có, chỉ thêm đúng phần thiếu (macro/list) thay vì viết lại từ đầu. Luôn `falco --validate` trước khi coi là xong.
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Falco documentation](https://falco.org/docs/)
+- ✅ [Falco — Rules basic elements (rule/macro/list)](https://falco.org/docs/concepts/rules/basic-elements/)
+- ✅ [Falco — Supported fields (proc.name, fd.name, container.id…)](https://falco.org/docs/reference/rules/supported-fields/)
+- ✅ [Falco — Output formatting](https://falco.org/docs/concepts/outputs/formatting/)
+- ✅ [Falco — Override/append rule có sẵn](https://falco.org/docs/concepts/rules/overriding/)
+- 📖 [falco_rules.yaml gốc (tham khảo macro có sẵn)](https://github.com/falcosecurity/rules/blob/main/rules/falco_rules.yaml)
+
+### 6.2 Audit Logging (API server) — cách viết audit policy (mới so với CKA)
+> **Là gì / vì sao cần:** audit log ghi lại **ai đã gọi API nào, lúc nào, làm gì** với API server — khác hẳn log ứng dụng hay log container. Dùng để trả lời câu hỏi kiểu "ai đã xoá deployment này lúc 2h sáng" khi điều tra sự cố. Vì log full request/response (`RequestResponse`) rất nặng, audit policy cho phép chọn mức log khác nhau theo từng resource/user (VD log ít với `kube-proxy` vì nó gọi API liên tục, log đầy đủ với thao tác `delete` trên `pods` ở namespace `prod`).
+
+```yaml
+# audit-policy.yaml
+apiVersion: audit.k8s.io/v1
+kind: Policy
+omitStages: ["RequestReceived"]     # bỏ bớt stage không cần để giảm dung lượng log
+rules:
+  - level: None                      # None = không log gì
+    users: ["system:kube-proxy"]
+    verbs: ["watch"]
+  - level: Metadata                  # log metadata (ai, khi nào, resource nào) — KHÔNG log body request/response
+    resources:
+      - group: ""
+        resources: ["secrets", "configmaps"]
+  - level: Request                   # log thêm cả request body, không log response
+    resources:
+      - group: "apps"
+        resources: ["deployments"]
+  - level: RequestResponse           # log đầy đủ cả request lẫn response — nặng nhất
+    resources:
+      - group: ""
+        resources: ["pods"]
+    namespaces: ["prod"]
+    verbs: ["create", "delete", "update", "patch"]
+  - level: Metadata                  # rule cuối = catch-all cho mọi thứ còn lại
+```
+4 mức level (từ nhẹ đến nặng): `None` < `Metadata` < `Request` < `RequestResponse`. Rule được match theo thứ tự từ trên xuống, dừng ở rule đầu tiên khớp — nên đặt rule cụ thể trước, catch-all để cuối.
+
+```bash
+# gắn vào kube-apiserver.yaml
+--audit-policy-file=/etc/kubernetes/audit-policy.yaml
+--audit-log-path=/var/log/kubernetes/audit.log
+--audit-log-maxage=7
+--audit-log-maxbackup=3
+--audit-log-maxsize=100
+
+# cần thêm hostPath volume mount audit-policy.yaml + thư mục log vào pod kube-apiserver (sửa volumes/volumeMounts)
+
+tail -f /var/log/kubernetes/audit.log | jq .
+cat /var/log/kubernetes/audit.log | jq 'select(.verb=="delete")'
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Auditing — có audit-policy.yaml mẫu + flag/volume cho kube-apiserver](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/)
+- ✅ [kube-apiserver Audit Configuration (v1) — field Policy/Rule](https://kubernetes.io/docs/reference/config-api/apiserver-audit.v1/)
+- ✅ [kube-apiserver flags (--audit-log-maxage, --audit-log-maxbackup…)](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/)
+
+### 6.3 Encryption at Rest (Secrets trong etcd) (mới so với CKA)
+> **Là gì / vì sao cần:** nhiều người nghĩ `kubectl create secret` là "an toàn" vì giá trị hiển thị base64 chứ không phải plaintext — nhưng base64 chỉ là encode, không phải mã hoá, ai đọc trực tiếp dữ liệu trong etcd (nơi K8s lưu mọi state) đều decode được ngay. Encryption at Rest mã hoá thật sự dữ liệu secret **trước khi** ghi xuống đĩa của etcd, dùng 1 key riêng (`aescbc` ở đây). Provider `identity: {}` để cuối cùng là fallback đọc dữ liệu **chưa** mã hoá (cho những secret tạo từ trước khi bật tính năng này) — không có nó, cluster sẽ không đọc được các secret cũ.
+
+```yaml
+# enc.yaml
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources: ["secrets"]
+    providers:
+      - aescbc:
+          keys:
+            - name: key1
+              secret: <base64-32-byte-key>   # tạo bằng: head -c 32 /dev/urandom | base64
+      - identity: {}    # provider cuối = fallback đọc dữ liệu chưa mã hoá (cho phép đọc secret cũ)
+```
+```bash
+head -c 32 /dev/urandom | base64     # sinh key
+--encryption-provider-config=/etc/kubernetes/enc/enc.yaml   # thêm flag vào kube-apiserver.yaml
+# nhớ mount volume chứa file enc.yaml vào pod apiserver
+
+# verify đã mã hoá thật:
+ETCDCTL_API=3 etcdctl get /registry/secrets/default/mysecret --prefix -w fields \
+  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+  --cert=/etc/kubernetes/pki/etcd/server.crt \
+  --key=/etc/kubernetes/pki/etcd/server.key
+# output phải thấy tiền tố "k8s:enc:aescbc:v1:key1" thay vì thấy giá trị secret dạng plaintext
+
+# secret cũ tạo trước khi bật encryption cần re-write để được mã hoá:
+kubectl get secrets --all-namespaces -o json | kubectl replace -f -
+```
+
+**🔗 Tra cứu khi thi:**
+- ✅ [Encrypting Confidential Data at Rest — EncryptionConfiguration mẫu, lệnh etcdctl verify, re-write secret](https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/)
+- ✅ [EncryptionConfiguration API](https://kubernetes.io/docs/reference/config-api/apiserver-config.v1/)
+- ✅ [Operating etcd clusters (cert flag cho etcdctl)](https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/)
+- ✅ [etcd documentation](https://etcd.io/docs/)
+
+### 6.4 Sandbox / RuntimeClass (gVisor, Kata) (mới so với CKA)
+> **Là gì / vì sao cần:** container thông thường (runtime `runc`) là process bình thường trên host, chỉ bị giới hạn bằng namespace + cgroup — vẫn dùng chung 1 kernel Linux với host và với mọi container khác. Nếu có lỗ hổng kernel bị khai thác (container escape), attacker chạm được thẳng tới host thật. `gVisor` (Google) chèn 1 kernel giả lập ở user-space chặn giữa container và kernel thật, chỉ cho qua các syscall đã kiểm tra; `Kata Containers` chạy hẳn container trong 1 VM nhẹ riêng (có kernel riêng). Cả 2 đánh đổi hiệu năng lấy cách ly mạnh hơn — dùng cho workload không tin cậy (chạy code người dùng ngoài gửi lên, multi-tenant...). `RuntimeClass` là cách khai báo trong K8s để pod chọn dùng runtime nào.
+
+```yaml
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata: {name: gvisor}
+handler: runsc
+---
 apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: my-quota
+kind: Pod
 spec:
-  hard:
-    requests.cpu: "4"
-    requests.memory: 8Gi
-    limits.cpu: "8"
-    limits.memory: 16Gi
-    pods: "20"
----
-apiVersion: v1
-kind: LimitRange
-metadata:
-  name: my-limits
-spec:
-  limits:
-  - type: Container
-    default:
-      cpu: "500m"
-      memory: "256Mi"
-    defaultRequest:
-      cpu: "100m"
-      memory: "64Mi"
+  runtimeClassName: gvisor
+```
+```bash
+kubectl get runtimeclass
+crictl info | grep -A5 runsc
+kubectl exec pod -- dmesg | grep -i gvisor   # xác nhận thực sự chạy trong sandbox
 ```
 
-</details>
+**🔗 Tra cứu khi thi:**
+- ✅ [Runtime Class — RuntimeClass YAML + runtimeClassName](https://kubernetes.io/docs/concepts/containers/runtime-class/)
+- 📖 [gVisor — containerd quick start (runsc handler)](https://gvisor.dev/docs/user_guide/containerd/quick_start/)
+- 📖 [Kata Containers docs](https://github.com/kata-containers/kata-containers/tree/main/docs)
 
-<details>
-<summary>StorageClass</summary>
-
+### 6.5 Hạn chế exec/attach vào pod production
 ```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: fast
-provisioner: kubernetes.io/no-provisioner
-reclaimPolicy: Retain
-volumeBindingMode: WaitForFirstConsumer
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/attach"]
+    verbs: []          # không cấp verb "create" cho subresource exec/attach = chặn hoàn toàn
+```
+```bash
+kubectl auth can-i create pods/exec --as=jane -n prod   # phải trả về "no"
 ```
 
-</details>
-
-<details>
-<summary>Gateway API (Gateway + HTTPRoute)</summary>
-
-```yaml
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: my-gateway
-spec:
-  gatewayClassName: istio
-  listeners:
-  - name: http
-    protocol: HTTP
-    port: 80
-    allowedRoutes:
-      namespaces:
-        from: Same
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: my-route
-spec:
-  parentRefs:
-  - name: my-gateway
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /
-    backendRefs:
-    - name: my-service
-      port: 80
-```
-
-</details>
+**🔗 Tra cứu khi thi:**
+- ✅ [RBAC — subresource pods/exec, pods/attach](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources)
+- ✅ [Admission Controllers (DenyServiceExternalIPs, NodeRestriction…)](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/)
+- ✅ [Get a Shell to a Running Container](https://kubernetes.io/docs/tasks/debug/debug-application/get-shell-running-container/)
 
 ---
 
-## CKA FAQ — Common Questions
+## 7. Lộ trình luyện tập đề xuất
 
-### Is the CKA exam hard?
+1. **KodeKloud CKS course** (video + 20+ labs) → làm hết trước khi qua bước 2.
+2. **Killercoda CKS scenarios** (miễn phí, ~40 bài theo từng domain) — làm mỗi bài 2-3 lần tới khi không cần xem đáp án.
+3. **killer.sh** (2 lượt được tặng kèm khi đăng ký thi) — làm thử full 2 tiếng, mục tiêu đạt ≥90% trước khi thi thật.
+4. Ôn lại Linux cơ bản: user/group, permission, systemd, iptables/ss, SUID.
+5. Học thuộc cấu trúc rule ở mục 6.1 (Falco) và 4.3 (Rego/OPA) — đây là 2 phần "viết từ đầu" khó nhất, không có sẵn generator như `kubectl create`.
+6. Trước ngày thi: đọc lại toàn bộ alias/setup ở mục 0, luyện gõ YAML netpol/securityContext/RuntimeClass/audit-policy thuộc lòng không cần tra doc.
 
-Yes. Harder than I expected. The questions themselves aren't insane, but doing 17 tasks in 2 hours on a laggy remote desktop is stressful. I ran out of time on my first killer.sh attempt and only finished 12 questions. The passing score is 66%, which sounds low until you realize you're typing YAML from memory while a timer counts down. Practice until you're fast, not just correct.
-
-### Is the CKA worth it in 2026?
-
-For me, absolutely. Not because of the badge — because studying for it forced me to learn etcd, kubeadm, and cluster troubleshooting. I'd been deploying apps to Kubernetes for a year without understanding any of that. The cert also gets you past resume filters for platform/SRE roles. Every job posting I looked at listed CKA. Whether you need the cert or just the knowledge depends on your situation, but I'd do it again.
-
-### How long should I study for the CKA?
-
-It took me about 4 weeks. I was already deploying apps to Kubernetes at work but had never touched etcd or kubeadm, so those domains ate most of my study time. If you're already an admin, less. If you're brand new to Kubernetes, honestly double it — you need to learn Kubernetes itself before you learn the exam material. I wouldn't try to rush it under 3 weeks unless you're very comfortable already.
-
-### Do I need any prerequisites for the CKA?
-
-Officially no. Unofficially, if you can't `vim` a file, `ssh` into a server, or read YAML without your eyes glazing over, you're going to have a bad time. The exam assumes you already know:
-- Linux command line — bash, vim, systemctl, journalctl. You will live in the terminal.
-- Basic networking — DNS, ports, TCP. Not deep stuff, but you need to understand why pod-to-service traffic uses port 53.
-- YAML — one wrong indent and nothing works. Practice until you can spot indentation errors by looking.
-
-You don't need Docker experience specifically. containerd is the runtime now. Docker knowledge helps but isn't required.
-
-### What if I fail the CKA?
-
-You get one free retake with the $445 purchase. Use it. Seriously — a lot of people fail the first attempt, especially on time management. I know people who scored 55% the first time and 80%+ on the retake just because they knew what to expect. The retake window is 12 months, so there's no rush.
-
-### Is the CKA exam open book?
-
-Kind of. You can open kubernetes.io/docs, kubernetes.io/blog, and github.com/kubernetes during the exam. That's it. No Stack Overflow, no personal notes, no ChatGPT. I bookmarked the etcd backup page and the kubeadm upgrade page before the exam — saved me at least 3 minutes of searching. The docs are allowed but the search is slow, so know where things are before exam day.
-
-### Can I take the CKA remotely?
-
-Yes, it's remote-only via PSI Secure Browser. You need a quiet room, clear desk, webcam, and mic. The proctor watches you the entire time. I had to show my entire desk and the area under it before starting. One tip: use a wired internet connection. My WiFi dropped during a killer.sh practice run and I lost 2 minutes reconnecting. I switched to ethernet for the real thing.
-
-### Should I take CKA or CKAD first?
-
-CKA if you manage clusters or want to. CKAD if you only deploy apps and never touch the infrastructure. I did CKA first because I wanted to understand the whole stack, not just the deployment side. About 40% of the content overlaps (pods, services, deployments), so whichever you do second is noticeably easier.
-
-### How is the CKA different from CKS?
-
-CKA is about building and fixing clusters. CKS is about locking them down — Falco rules, AppArmor profiles, OPA policies, audit logging. CKS requires an active CKA to even register. Unless your job is specifically Kubernetes security, I'd skip CKS and focus on getting real cluster experience instead.
-
-### How many questions are on the CKA?
-
-Somewhere around 17-25 tasks. Mine had 17. Each task has a weight percentage — a 7% question is worth more than a 3% one, obviously. I did the high-weight questions first on my second pass. Don't treat all questions equally.
-
-### What Kubernetes version is on the CKA in 2026?
-
-v1.35 as of March 2026. They update it to match recent stable releases. Check the [CNCF handbook](https://docs.linuxfoundation.org/tc-docs/certification/tips-cka-and-ckad) before your exam — if you studied on v1.34, most things are the same but native sidecars and Gateway API are GA now, and those showed up on my exam.
-
-### Can I use aliases and scripts during the CKA?
-
-Yes. You can set up any aliases, bash functions, or vim config you want at the start of the exam. The exam environment gives you a fresh terminal — set it up before starting questions.
-
-### How fast do I get my CKA results?
-
-Results come via email within 24 hours. Mine arrived in about 12 hours. You'll get a score and pass/fail. If you pass, the certificate PDF is available in your CNCF portal.
-
-### What's the pass rate for the CKA?
-
-No idea. The CNCF doesn't publish it. Most people I talked to in r/kubernetes and the CNCF Slack passed on the first or second try. If you've done killer.sh and scored 60%+, you'll be fine.
-
----
-
-## Final Words
-
-The stuff I practiced was the stuff that showed up. If something in this guide is wrong or outdated, open a PR.
-
-Good luck.
-
----
-
-## Spread the Word
-
-If this helped you pass, star the repo and share it wherever makes sense — team Slack, r/kubernetes, Twitter, whatever. And if you have exam feedback (what showed up, what was different from what you expected), open an issue. That's how this guide stays accurate.
-
-Every star and issue makes this repo more visible to the next person Googling "CKA exam prep."
-
-<p align="center">
-  <a href="https://github.com/theplatformlab/CKA-Certified-Kubernetes-Administrator">
-    <img src="https://img.shields.io/github/stars/theplatformlab/CKA-Certified-Kubernetes-Administrator?style=for-the-badge&logo=github" alt="GitHub Stars">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://techwithmohamed.com">techwithmohamed.com</a> · 
-  <a href="https://techwithmohamed.com/blog/cka-exam-study-guide/">Blog Post</a>
-</p>
-
----
-
-### Topics
-
-`cka` `cka-exam` `cka-certification` `cka-study-guide` `cka-practice-questions` `cka-cheat-sheet` `certified-kubernetes-administrator` `kubernetes` `kubernetes-certification` `kubernetes-exam` `cka-2026` `kubectl` `kubeadm` `etcd-backup` `kubernetes-troubleshooting` `cka-tips` `killer-sh` `kubernetes-rbac` `gateway-api` `helm` `kubernetes-v1.35` `cka-mock-exam` `kubectl-cheatsheet`
-
+## 8. Chiến thuật làm bài
+- Đọc hết đề trước khi gõ lệnh, xác định đúng **context/cluster/namespace**.
+- Câu dễ (RBAC, NetworkPolicy, SecurityContext) làm trước — 3-5 phút/câu.
+- Câu khó/tốn thời gian (viết Falco rule, audit policy, encryption) để cuối, đánh dấu bookmark (nút flag trong giao diện thi) để quay lại.
+- Với câu Falco: nếu đề cho sẵn rule gần đúng, chỉ sửa phần thiếu — đừng viết lại từ đầu; luôn `falco --validate` trước khi coi là xong.
+- Làm xong luôn **verify lại** (curl thử NetworkPolicy, `kubectl auth can-i`, đọc log Falco, `etcdctl get` kiểm tra encryption...) — nhiều task chấm theo hành vi thực tế, không chỉ theo YAML tồn tại.
+- Quản lý thời gian: không để 1 câu quá 12-15 phút nếu bí, bỏ qua rồi quay lại.
